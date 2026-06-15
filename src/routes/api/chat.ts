@@ -41,13 +41,31 @@ export const Route = createFileRoute("/api/chat")({
           return new Response("Bad request", { status: 400 });
         }
 
-        // verify thread ownership
+        // verify thread ownership and load any linked book context
         const { data: thread } = await supabase
           .from("chat_threads")
-          .select("id")
+          .select("id, book_id")
           .eq("id", body.threadId)
           .maybeSingle();
         if (!thread) return new Response("Thread not found", { status: 404 });
+
+        let bookSystem = "";
+        if (thread.book_id) {
+          const [{ data: book }, { data: sessions }] = await Promise.all([
+            supabase.from("books").select("title, author, total_pages, current_page").eq("id", thread.book_id).maybeSingle(),
+            supabase
+              .from("reading_sessions")
+              .select("session_date, pages_from, pages_to, understanding_note")
+              .eq("book_id", thread.book_id)
+              .order("created_at", { ascending: true }),
+          ]);
+          if (book) {
+            const notes = (sessions ?? [])
+              .map((s) => `• ${s.session_date} (pp ${s.pages_from}-${s.pages_to}): ${s.understanding_note}`)
+              .join("\n");
+            bookSystem = `\n\nThe reader is studying the book "${book.title}"${book.author ? ` by ${book.author}` : ""} (page ${book.current_page} of ${book.total_pages}). Your job here is to deepen their understanding of this book — answer questions, explain ideas, quiz them, surface what they may have missed. Stay grounded in this book.\n\nWhat they've logged so far:\n${notes || "(nothing yet)"}\n`;
+          }
+        }
 
         const key = process.env.LOVABLE_API_KEY;
         if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
@@ -69,7 +87,7 @@ export const Route = createFileRoute("/api/chat")({
 
         const result = streamText({
           model,
-          system: SYSTEM_PROMPT,
+          system: SYSTEM_PROMPT + bookSystem,
           messages: await convertToModelMessages(body.messages),
         });
 

@@ -14,6 +14,89 @@ export type Database = {
   }
   public: {
     Tables: {
+      book_recommendations: {
+        Row: {
+          author: string | null
+          created_at: string
+          id: string
+          reason: string | null
+          source_book_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          author?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          source_book_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          author?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          source_book_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_recommendations_source_book_id_fkey"
+            columns: ["source_book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      books: {
+        Row: {
+          author: string | null
+          created_at: string
+          current_page: number
+          final_score: number | null
+          final_summary: string | null
+          finished_at: string | null
+          id: string
+          status: string
+          title: string
+          total_pages: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          author?: string | null
+          created_at?: string
+          current_page?: number
+          final_score?: number | null
+          final_summary?: string | null
+          finished_at?: string | null
+          id?: string
+          status?: string
+          title: string
+          total_pages?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          author?: string | null
+          created_at?: string
+          current_page?: number
+          final_score?: number | null
+          final_summary?: string | null
+          finished_at?: string | null
+          id?: string
+          status?: string
+          title?: string
+          total_pages?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           client_message_id: string | null
@@ -54,6 +137,7 @@ export type Database = {
       }
       chat_threads: {
         Row: {
+          book_id: string | null
           created_at: string
           id: string
           title: string
@@ -61,6 +145,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          book_id?: string | null
           created_at?: string
           id?: string
           title?: string
@@ -68,13 +153,22 @@ export type Database = {
           user_id: string
         }
         Update: {
+          book_id?: string | null
           created_at?: string
           id?: string
           title?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_threads_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       mood_checkins: {
         Row: {
@@ -108,6 +202,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      reading_sessions: {
+        Row: {
+          ai_feedback: string | null
+          ai_score: number | null
+          book_id: string
+          created_at: string
+          id: string
+          pages_from: number
+          pages_to: number
+          session_date: string
+          understanding_note: string
+          user_id: string
+        }
+        Insert: {
+          ai_feedback?: string | null
+          ai_score?: number | null
+          book_id: string
+          created_at?: string
+          id?: string
+          pages_from: number
+          pages_to: number
+          session_date?: string
+          understanding_note: string
+          user_id: string
+        }
+        Update: {
+          ai_feedback?: string | null
+          ai_score?: number | null
+          book_id?: string
+          created_at?: string
+          id?: string
+          pages_from?: number
+          pages_to?: number
+          session_date?: string
+          understanding_note?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_sessions_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {
