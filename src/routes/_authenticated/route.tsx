@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, MessageCircleHeart, LogOut, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useWaterReminder } from "@/hooks/use-water-reminder";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthedLayout() {
   const nav = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  useWaterReminder();
 
   async function signOut() {
     await supabase.auth.signOut();
