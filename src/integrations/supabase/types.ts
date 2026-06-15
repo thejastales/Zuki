@@ -14,7 +14,143 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chat_messages: {
+        Row: {
+          client_message_id: string | null
+          created_at: string
+          id: string
+          parts: Json
+          role: string
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          client_message_id?: string | null
+          created_at?: string
+          id?: string
+          parts: Json
+          role: string
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          client_message_id?: string | null
+          created_at?: string
+          id?: string
+          parts?: Json
+          role?: string
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "chat_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_threads: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mood_checkins: {
+        Row: {
+          checkin_date: string
+          created_at: string
+          id: string
+          mood: string
+          productivity_score: number
+          quote: string | null
+          quote_author: string | null
+          user_id: string
+        }
+        Insert: {
+          checkin_date?: string
+          created_at?: string
+          id?: string
+          mood: string
+          productivity_score: number
+          quote?: string | null
+          quote_author?: string | null
+          user_id: string
+        }
+        Update: {
+          checkin_date?: string
+          created_at?: string
+          id?: string
+          mood?: string
+          productivity_score?: number
+          quote?: string | null
+          quote_author?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          notes: string | null
+          scheduled_time: string | null
+          sort_order: number
+          status: string
+          task_date: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          notes?: string | null
+          scheduled_time?: string | null
+          sort_order?: number
+          status?: string
+          task_date?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          notes?: string | null
+          scheduled_time?: string | null
+          sort_order?: number
+          status?: string
+          task_date?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
