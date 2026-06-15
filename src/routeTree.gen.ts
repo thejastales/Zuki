@@ -16,7 +16,9 @@ import { Route as ApiReadingRouteImport } from './routes/api/reading'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
+import { Route as AuthenticatedReadingIndexRouteImport } from './routes/_authenticated/reading.index'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
+import { Route as AuthenticatedReadingBookIdRouteImport } from './routes/_authenticated/reading.$bookId'
 import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat.$threadId'
 
 const AuthRoute = AuthRouteImport.update({
@@ -53,11 +55,23 @@ const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedReadingIndexRoute =
+  AuthenticatedReadingIndexRouteImport.update({
+    id: '/reading/',
+    path: '/reading/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedChatRoute,
 } as any)
+const AuthenticatedReadingBookIdRoute =
+  AuthenticatedReadingBookIdRouteImport.update({
+    id: '/reading/$bookId',
+    path: '/reading/$bookId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedChatThreadIdRoute =
   AuthenticatedChatThreadIdRouteImport.update({
     id: '/$threadId',
@@ -73,7 +87,9 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/api/reading': typeof ApiReadingRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/reading/$bookId': typeof AuthenticatedReadingBookIdRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
+  '/reading/': typeof AuthenticatedReadingIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -82,7 +98,9 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/api/reading': typeof ApiReadingRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/reading/$bookId': typeof AuthenticatedReadingBookIdRoute
   '/chat': typeof AuthenticatedChatIndexRoute
+  '/reading': typeof AuthenticatedReadingIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -94,7 +112,9 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/api/reading': typeof ApiReadingRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/_authenticated/reading/$bookId': typeof AuthenticatedReadingBookIdRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
+  '/_authenticated/reading/': typeof AuthenticatedReadingIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -106,7 +126,9 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/reading'
     | '/chat/$threadId'
+    | '/reading/$bookId'
     | '/chat/'
+    | '/reading/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -115,7 +137,9 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/reading'
     | '/chat/$threadId'
+    | '/reading/$bookId'
     | '/chat'
+    | '/reading'
   id:
     | '__root__'
     | '/'
@@ -126,7 +150,9 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/reading'
     | '/_authenticated/chat/$threadId'
+    | '/_authenticated/reading/$bookId'
     | '/_authenticated/chat/'
+    | '/_authenticated/reading/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -188,12 +214,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/reading/': {
+      id: '/_authenticated/reading/'
+      path: '/reading'
+      fullPath: '/reading/'
+      preLoaderRoute: typeof AuthenticatedReadingIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/chat/': {
       id: '/_authenticated/chat/'
       path: '/'
       fullPath: '/chat/'
       preLoaderRoute: typeof AuthenticatedChatIndexRouteImport
       parentRoute: typeof AuthenticatedChatRoute
+    }
+    '/_authenticated/reading/$bookId': {
+      id: '/_authenticated/reading/$bookId'
+      path: '/reading/$bookId'
+      fullPath: '/reading/$bookId'
+      preLoaderRoute: typeof AuthenticatedReadingBookIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/chat/$threadId': {
       id: '/_authenticated/chat/$threadId'
@@ -221,11 +261,15 @@ const AuthenticatedChatRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedChatRoute: typeof AuthenticatedChatRouteWithChildren
   AuthenticatedTodayRoute: typeof AuthenticatedTodayRoute
+  AuthenticatedReadingBookIdRoute: typeof AuthenticatedReadingBookIdRoute
+  AuthenticatedReadingIndexRoute: typeof AuthenticatedReadingIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChatRoute: AuthenticatedChatRouteWithChildren,
   AuthenticatedTodayRoute: AuthenticatedTodayRoute,
+  AuthenticatedReadingBookIdRoute: AuthenticatedReadingBookIdRoute,
+  AuthenticatedReadingIndexRoute: AuthenticatedReadingIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
