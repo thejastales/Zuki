@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiReadingRouteImport } from './routes/api/reading'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
@@ -30,6 +31,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiReadingRoute = ApiReadingRouteImport.update({
+  id: '/api/reading',
+  path: '/api/reading',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/chat': typeof AuthenticatedChatRouteWithChildren
   '/today': typeof AuthenticatedTodayRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/reading': typeof ApiReadingRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
 }
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/today': typeof AuthenticatedTodayRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/reading': typeof ApiReadingRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/chat': typeof AuthenticatedChatIndexRoute
 }
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/_authenticated/chat': typeof AuthenticatedChatRouteWithChildren
   '/_authenticated/today': typeof AuthenticatedTodayRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/reading': typeof ApiReadingRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
 }
@@ -95,10 +104,18 @@ export interface FileRouteTypes {
     | '/chat'
     | '/today'
     | '/api/chat'
+    | '/api/reading'
     | '/chat/$threadId'
     | '/chat/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/today' | '/api/chat' | '/chat/$threadId' | '/chat'
+  to:
+    | '/'
+    | '/auth'
+    | '/today'
+    | '/api/chat'
+    | '/api/reading'
+    | '/chat/$threadId'
+    | '/chat'
   id:
     | '__root__'
     | '/'
@@ -107,6 +124,7 @@ export interface FileRouteTypes {
     | '/_authenticated/chat'
     | '/_authenticated/today'
     | '/api/chat'
+    | '/api/reading'
     | '/_authenticated/chat/$threadId'
     | '/_authenticated/chat/'
   fileRoutesById: FileRoutesById
@@ -116,6 +134,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiReadingRoute: typeof ApiReadingRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -139,6 +158,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/reading': {
+      id: '/api/reading'
+      path: '/api/reading'
+      fullPath: '/api/reading'
+      preLoaderRoute: typeof ApiReadingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat': {
@@ -210,6 +236,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiReadingRoute: ApiReadingRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
