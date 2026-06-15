@@ -345,6 +345,3 @@ function TodayPage() {
     </div>
   );
 }
-
-// Avoid unused import warning for Textarea (kept for future task notes)
-export { Textarea as _Textarea };
