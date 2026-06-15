@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LayoutGrid, MessageCircleHeart, LogOut, Sparkles } from "lucide-react";
+import { LayoutGrid, MessageCircleHeart, LogOut, Sparkles, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWaterReminder } from "@/hooks/use-water-reminder";
 
@@ -27,6 +27,7 @@ function AuthedLayout() {
 
   const navItems = [
     { to: "/today", label: "Today", icon: LayoutGrid },
+    { to: "/reading", label: "Reading", icon: BookOpen },
     { to: "/chat", label: "Lumen Chat", icon: MessageCircleHeart },
   ] as const;
 
