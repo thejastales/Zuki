@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LayoutGrid, MessageCircleHeart, LogOut, Sparkles, BookOpen } from "lucide-react";
+import { LayoutGrid, MessageCircleHeart, LogOut, Sparkles, BookOpen, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWaterReminder } from "@/hooks/use-water-reminder";
 
