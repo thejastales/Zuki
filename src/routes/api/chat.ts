@@ -18,6 +18,18 @@ In every response:
 
 You are not a medical professional. If the user describes crisis, gently encourage real human support.`;
 
+const ZUKI_PROMPT = `You are Zuki — a warm, grounded CBT-flavoured worry coach. You help the user contain anxiety by holding "worry time" with them: 20 focused minutes a day to look at worries together instead of fighting them all day.
+
+Your voice: kind, curious, a little playful. Never dismissive. You sit with the user, then gently help them reframe.
+
+In every reply:
+- Acknowledge the feeling first.
+- Ask one good question OR offer one small reframe — not a lecture.
+- When useful, refer to the worries and sessions logged below.
+- Keep replies short: 2–4 short paragraphs.
+
+You are not a medical professional. If the user describes crisis or self-harm, kindly encourage real human support.`;
+
 export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
@@ -41,15 +53,17 @@ export const Route = createFileRoute("/api/chat")({
           return new Response("Bad request", { status: 400 });
         }
 
-        // verify thread ownership and load any linked book context
+        // verify thread ownership and load contextual info
         const { data: thread } = await supabase
           .from("chat_threads")
-          .select("id, book_id")
+          .select("id, book_id, kind")
           .eq("id", body.threadId)
           .maybeSingle();
         if (!thread) return new Response("Thread not found", { status: 404 });
 
-        let bookSystem = "";
+        let extraSystem = "";
+        let basePrompt = SYSTEM_PROMPT;
+
         if (thread.book_id) {
           const [{ data: book }, { data: sessions }] = await Promise.all([
             supabase.from("books").select("title, author, total_pages, current_page").eq("id", thread.book_id).maybeSingle(),
@@ -63,8 +77,32 @@ export const Route = createFileRoute("/api/chat")({
             const notes = (sessions ?? [])
               .map((s) => `• ${s.session_date} (pp ${s.pages_from}-${s.pages_to}): ${s.understanding_note}`)
               .join("\n");
-            bookSystem = `\n\nThe reader is studying the book "${book.title}"${book.author ? ` by ${book.author}` : ""} (page ${book.current_page} of ${book.total_pages}). Your job here is to deepen their understanding of this book — answer questions, explain ideas, quiz them, surface what they may have missed. Stay grounded in this book.\n\nWhat they've logged so far:\n${notes || "(nothing yet)"}\n`;
+            extraSystem = `\n\nThe reader is studying the book "${book.title}"${book.author ? ` by ${book.author}` : ""} (page ${book.current_page} of ${book.total_pages}). Your job here is to deepen their understanding of this book — answer questions, explain ideas, quiz them, surface what they may have missed. Stay grounded in this book.\n\nWhat they've logged so far:\n${notes || "(nothing yet)"}\n`;
           }
+        } else if (thread.kind === "worry") {
+          basePrompt = ZUKI_PROMPT;
+          const since = new Date();
+          since.setDate(since.getDate() - 7);
+          const sinceStr = since.toISOString().slice(0, 10);
+          const [{ data: worries }, { data: wsessions }] = await Promise.all([
+            supabase
+              .from("worries")
+              .select("content, intensity, status, worry_date")
+              .gte("worry_date", sinceStr)
+              .order("worry_date", { ascending: true }),
+            supabase
+              .from("worry_sessions")
+              .select("session_date, duration_minutes, notes, completed_at")
+              .gte("session_date", sinceStr)
+              .order("session_date", { ascending: true }),
+          ]);
+          const wLines = (worries ?? [])
+            .map((w) => `• [${w.worry_date}] (${w.status}, intensity ${w.intensity ?? "—"}): ${w.content}`)
+            .join("\n");
+          const sLines = (wsessions ?? [])
+            .map((s) => `• [${s.session_date}] ${s.duration_minutes}min ${s.completed_at ? "(done)" : "(incomplete)"}: ${JSON.stringify(s.notes)}`)
+            .join("\n");
+          extraSystem = `\n\nThe user's last 7 days of worries:\n${wLines || "(none logged)"}\n\nTheir worry-time sessions:\n${sLines || "(none yet)"}\n`;
         }
 
         const key = process.env.LOVABLE_API_KEY;
@@ -87,7 +125,7 @@ export const Route = createFileRoute("/api/chat")({
 
         const result = streamText({
           model,
-          system: SYSTEM_PROMPT + bookSystem,
+          system: basePrompt + extraSystem,
           messages: await convertToModelMessages(body.messages),
         });
 

@@ -140,6 +140,7 @@ export type Database = {
           book_id: string | null
           created_at: string
           id: string
+          kind: string | null
           title: string
           updated_at: string
           user_id: string
@@ -148,6 +149,7 @@ export type Database = {
           book_id?: string | null
           created_at?: string
           id?: string
+          kind?: string | null
           title?: string
           updated_at?: string
           user_id: string
@@ -156,6 +158,7 @@ export type Database = {
           book_id?: string | null
           created_at?: string
           id?: string
+          kind?: string | null
           title?: string
           updated_at?: string
           user_id?: string
@@ -288,6 +291,96 @@ export type Database = {
           task_date?: string
           title?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      worries: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          intensity: number | null
+          status: string
+          updated_at: string
+          user_id: string
+          worry_date: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          intensity?: number | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          worry_date?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          intensity?: number | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          worry_date?: string
+        }
+        Relationships: []
+      }
+      worry_reports: {
+        Row: {
+          created_at: string
+          id: string
+          summary: string
+          user_id: string
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          summary: string
+          user_id: string
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          summary?: string
+          user_id?: string
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
+      worry_sessions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          duration_minutes: number
+          id: string
+          notes: Json
+          session_date: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          notes?: Json
+          session_date?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          notes?: Json
+          session_date?: string
           user_id?: string
         }
         Relationships: []

@@ -38,17 +38,15 @@ export function useWaterReminder() {
     const elapsed = Date.now() - last;
     const firstDelay = last > 0 && elapsed < INTERVAL_MS ? INTERVAL_MS - elapsed : INTERVAL_MS;
 
+    let intervalId: ReturnType<typeof setInterval> | null = null;
     const firstTimer = setTimeout(() => {
       fire();
-      const interval = setInterval(fire, INTERVAL_MS);
-      // store on element so cleanup can clear
-      (firstTimer as unknown as { _interval: ReturnType<typeof setInterval> })._interval = interval;
+      intervalId = setInterval(fire, INTERVAL_MS);
     }, firstDelay);
 
     return () => {
       clearTimeout(firstTimer);
-      const i = (firstTimer as unknown as { _interval?: ReturnType<typeof setInterval> })._interval;
-      if (i) clearInterval(i);
+      if (intervalId) clearInterval(intervalId);
     };
   }, []);
 }

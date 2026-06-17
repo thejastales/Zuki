@@ -1,52 +1,54 @@
-# Reading Dashboard
+## 1. Fix the login flow
 
-A new section in your app focused on books: log what you read each day, chat with an AI about it, see how well you understand the book, and get recommendations for what to read next.
+The runtime error `Cannot create property '_interval' on number '22'` comes from `src/hooks/use-water-reminder.ts` — in browsers `setTimeout` returns a number, so attaching `._interval` to it throws. This crash bubbles up through the `_authenticated` layout right after sign-in, which is why the email/password login appears broken (auth succeeds, then the app crashes on `/today`).
 
-## What you'll get
+Fix: rewrite the hook to keep the interval id in a normal variable inside the effect (no property attached to the timeout id). Also harden the auth page so a stale/invalid session doesn't block re-login.
 
-1. **Books list** (`/reading`) — every book you're tracking. Add a new book (title, author, total pages). See current page, % complete, and an "understanding score" per book.
+## 2. New "Worry Time" dashboard
 
-2. **Book detail** (`/reading/$bookId`) — for the selected book:
-   - **Today's reading log**: pages read today (from → to), free-text "what I understood today".
-   - **Progress bar**: pages read / total pages.
-   - **Understanding score** (0–100): AI grades each log entry on depth/clarity and averages them, weighted by pages covered. Shown with a short AI summary of strengths and gaps.
-   - **Chat with the book**: an AI tutor that knows the book's title/author and everything you've logged so far. You can ask "explain chapter 3", "quiz me", "what did I miss about X". Each book has its own chat thread.
+Route: `/worry` (under `_authenticated`), added to the sidebar nav as **Worry Time**.
 
-3. **Finish a book** — when you mark a book finished:
-   - AI writes a final "what you understood" report + a comprehension score.
-   - AI recommends 3 next books based on your finished books, your notes, and chat history.
-   - Recommendations show on the Books list.
+Sections on the page:
 
-4. **Nav** — add a "Reading" link to the existing sidebar/nav alongside Today and Chat.
+- **Morning motivation** — a real-life, actionable motivational quote shown once per day at the top (rotates daily, deterministic per date so it doesn't change on refresh). Sourced from a curated list of real people (athletes, founders, authors, etc.) with an "implement today" one-liner.
+- **Today's worries** — quick add input + list of worries logged today (text, optional intensity 1–5). Each worry can be marked "resolved" or "carried over."
+- **Start Worry Time** — a 20-minute timer (configurable default 20). While running, the day's worries are displayed as cards you can journal a short response into. When the timer ends, the session is saved with notes.
+- **Zuki chat** — an inline chatbot named **Zuki** scoped to worries. Reuses the existing chat infra; threads tagged with `kind = 'worry'`. Zuki's system prompt: warm, CBT-flavored coach that helps reframe worries, references today's/this week's entries.
+- **Weekly evaluation** — once 7 days of data exist (or on-demand "Generate weekly report" button each Sunday/after 7 sessions), Zuki produces a markdown report: themes, recurring worries, resolved vs carried, improvements, encouragement. Stored and listed in a "Past reports" accordion.
 
-## Technical details
+## 3. Database (new migration)
 
-### Database (one migration)
-- `books` — id, user_id, title, author, total_pages, current_page, status (`reading|finished|abandoned`), final_score, final_summary, created_at, finished_at.
-- `reading_sessions` — id, user_id, book_id, session_date, pages_from, pages_to, understanding_note, ai_score (0–100), ai_feedback, created_at.
-- `book_recommendations` — id, user_id, title, author, reason, created_at.
-- All RLS-scoped to `auth.uid()`, with GRANTs to `authenticated` + `service_role`.
-- Book chat reuses existing `chat_threads`/`chat_messages` — add nullable `book_id` column to `chat_threads` to scope a thread to a book.
+- `worries` — `user_id`, `content`, `intensity` (1–5, nullable), `status` ('open' | 'resolved' | 'carried'), `worry_date`, timestamps.
+- `worry_sessions` — `user_id`, `session_date`, `duration_minutes`, `notes` (jsonb: `{ worryId: reflection }`), `completed_at`.
+- `worry_reports` — `user_id`, `week_start`, `week_end`, `summary` (markdown), `created_at`.
+- Extend `chat_threads` with a nullable `kind` text column (`'book' | 'worry' | null`) so Zuki threads are scoped (already has `book_id`; this is a parallel scoping signal for non-book contexts).
+- RLS + GRANTs per the standard pattern (`auth.uid() = user_id`, `authenticated` + `service_role`).
 
-### Server functions (`src/lib/reading.functions.ts`, auth-gated)
-- `listBooks`, `createBook`, `getBook`, `updateBookProgress`, `finishBook`.
-- `logReadingSession` — saves the log, then calls Lovable AI (`google/gemini-3-flash-preview`) with the book context + note to produce `ai_score` + `ai_feedback`; updates `books.current_page`.
-- `getBookSummary` — recomputes overall understanding score from sessions.
-- `finishBook` — AI generates final report + 3 recommendations, stored in `book_recommendations`.
-- `listRecommendations`.
+## 4. Server endpoints
 
-### Chat route for books
-- Reuse `/api/chat` but accept an optional `bookId`; when present, the server prepends a system message with book metadata + all session notes so the assistant is grounded in what the user has read and written.
-- `/reading/$bookId` renders the existing AI Elements chat UI, with a thread auto-created per book.
+`src/routes/api/worry.ts` (createFileRoute server route, `requireSupabaseAuth`-equivalent via existing pattern):
+- `POST action=weekly_report` — pulls last 7 days of worries + sessions, calls Lovable AI gateway, returns + stores the report.
+- `POST action=daily_quote` — returns today's motivational quote (deterministic by date + user, drawn from curated real-life list).
 
-### Routes & files
-- `src/routes/_authenticated/reading.index.tsx` — list + add book.
-- `src/routes/_authenticated/reading.$bookId.tsx` — detail (log form, progress, chat, finish button).
-- `src/lib/reading.functions.ts` — server fns above.
-- Update `src/routes/api/chat.ts` to inject book context when `bookId` is provided.
-- Update the authenticated layout/nav to add a "Reading" link.
+Chat: extend `src/routes/api/chat.ts` so when a thread's `kind = 'worry'`, the system prompt injects Zuki's persona + the last 7 days of worries and sessions for grounding.
 
-### Models
-- All AI calls go through the existing Lovable AI gateway helper (`src/lib/ai-gateway.server.ts`), no new keys.
+## 5. Files to create / edit
 
-Shall I build it?
+**Create**
+- `src/routes/_authenticated/worry.tsx` — dashboard UI (quote, worries list, timer, Zuki chat, weekly report panel).
+- `src/routes/api/worry.ts` — report + daily quote endpoints.
+- `src/lib/worry-quotes.ts` — curated real-life motivational quotes with "implement today" notes.
+- `supabase/migrations/<ts>_worry_time.sql` — tables, RLS, grants, `chat_threads.kind` column.
+
+**Edit**
+- `src/hooks/use-water-reminder.ts` — fix the timer cleanup bug (root cause of broken login).
+- `src/routes/_authenticated/route.tsx` — add Worry Time nav item.
+- `src/routes/api/chat.ts` — Zuki persona + worry-context injection when `kind = 'worry'`.
+- `src/integrations/supabase/types.ts` — regenerated after migration.
+
+## Technical notes
+
+- Timer runs purely client-side with `setInterval`; persists `startedAt` to `localStorage` so a refresh keeps the countdown.
+- Daily quote selection: `hash(userId + YYYY-MM-DD) % quotes.length` so it's stable per user per day.
+- Weekly report uses `google/gemini-2.5-flash` via the existing AI gateway helper — no new secrets.
+- Zuki always responds in markdown; UI renders with the existing `react-markdown` setup used by the book chat.
