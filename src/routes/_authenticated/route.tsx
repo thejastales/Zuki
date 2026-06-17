@@ -21,6 +21,9 @@ function AuthedLayout() {
   useWaterReminder();
 
   async function signOut() {
+    try {
+      localStorage.setItem("lumen:loggedOut", "true");
+    } catch {}
     await supabase.auth.signOut();
     nav({ to: "/auth" });
   }

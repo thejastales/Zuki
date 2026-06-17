@@ -11,6 +11,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { ArrowUp, Sparkles, Square, Trophy, BookOpen, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/reading/$bookId")({
   ssr: false,
@@ -27,6 +28,7 @@ type Book = {
   final_score: number | null;
   final_summary: string | null;
 };
+
 type Session = {
   id: string;
   session_date: string;
@@ -41,114 +43,174 @@ type Session = {
 function BookDetail() {
   const { bookId } = useParams({ from: "/_authenticated/reading/$bookId" });
   const nav = useNavigate();
-  const [book, setBook] = useState<Book | null>(null);
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [threadId, setThreadId] = useState<string | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [finishing, setFinishing] = useState(false);
 
+  // Get active session token
+  const { data: session } = useQuery({
+    queryKey: ["auth_session"],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      return data.session;
+    },
+  });
+  const token = session?.access_token ?? null;
+
+  // Get book details
+  const { data: book = null, isLoading: bookLoading } = useQuery({
+    queryKey: ["book", bookId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("books")
+        .select("*")
+        .eq("id", bookId)
+        .maybeSingle();
+      if (error) throw error;
+      return data as Book | null;
+    },
+  });
+
+  // Get reading sessions
+  const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
+    queryKey: ["reading_sessions", bookId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reading_sessions")
+        .select("*")
+        .eq("book_id", bookId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as Session[];
+    },
+  });
+
+  // Sync "from" page field when book details load
   useEffect(() => {
-    (async () => {
-      const [{ data: s }, { data: b }, { data: ses }] = await Promise.all([
-        supabase.auth.getSession(),
-        supabase.from("books").select("*").eq("id", bookId).maybeSingle(),
-        supabase.from("reading_sessions").select("*").eq("book_id", bookId).order("created_at", { ascending: false }),
-      ]);
-      setToken(s.session?.access_token ?? null);
-      setBook(b as Book | null);
-      setSessions((ses ?? []) as Session[]);
-      if (b) setFrom(String((b as Book).current_page || 0));
+    if (book) {
+      setFrom(String(book.current_page || 0));
+    }
+  }, [book]);
 
-      // find or create the book's chat thread
+  // Get or Create associated Chat Thread
+  const { data: threadId = null, isLoading: threadLoading } = useQuery({
+    queryKey: ["book_chat_thread", bookId],
+    enabled: !!book && !!session?.user,
+    queryFn: async () => {
+      // Find existing
       const { data: existing } = await supabase
         .from("chat_threads")
         .select("id")
         .eq("book_id", bookId)
         .maybeSingle();
       if (existing) {
-        setThreadId(existing.id);
-      } else if (s.session?.user) {
-        const { data: created } = await supabase
-          .from("chat_threads")
-          .insert({
-            user_id: s.session.user.id,
-            book_id: bookId,
-            title: `Chat: ${(b as Book | null)?.title ?? "book"}`,
-          })
-          .select("id")
-          .single();
-        setThreadId(created?.id ?? null);
+        return existing.id;
       }
-    })();
-  }, [bookId]);
+      // Create new
+      const { data: created, error } = await supabase
+        .from("chat_threads")
+        .insert({
+          user_id: session!.user.id,
+          book_id: bookId,
+          title: `Chat: ${book?.title ?? "book"}`,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return created.id;
+    },
+  });
 
-  async function logSession(e: React.FormEvent) {
+  // Mutations
+  const logSessionMutation = useMutation({
+    mutationFn: async ({ f, t, note }: { f: number; t: number; note: string }) => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+      const { data: row, error } = await supabase
+        .from("reading_sessions")
+        .insert({
+          user_id: user.user.id,
+          book_id: bookId,
+          pages_from: f,
+          pages_to: t,
+          understanding_note: note.trim(),
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return row as Session;
+    },
+    onSuccess: async (row) => {
+      queryClient.invalidateQueries({ queryKey: ["reading_sessions", bookId] });
+      queryClient.invalidateQueries({ queryKey: ["book", bookId] });
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+      setNote("");
+      setTo("");
+      toast.success("Reading session logged.");
+
+      // AI grading (handled in background non-blocking-ish)
+      if (token) {
+        try {
+          const res = await fetch("/api/reading", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ action: "score", bookId, sessionId: row.id }),
+          });
+          if (res.ok) {
+            queryClient.invalidateQueries({ queryKey: ["reading_sessions", bookId] });
+          }
+        } catch (e) {
+          console.error("Failed to fetch AI evaluation: ", e);
+        }
+      }
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
+
+  const finishBookMutation = useMutation({
+    mutationFn: async () => {
+      if (!token) throw new Error("Authentication token is missing.");
+      const res = await fetch("/api/reading", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "finish", bookId }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return (await res.json()) as { finalScore: number; finalSummary: string };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["book", bookId] });
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+      queryClient.invalidateQueries({ queryKey: ["book_recommendations"] });
+      toast.success("Book completed! Recommending next reads.");
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
+
+  function handleLogSession(e: React.FormEvent) {
     e.preventDefault();
-    if (!book || !token) return;
+    if (!book) return;
     const f = parseInt(from), t = parseInt(to);
     if (isNaN(f) || isNaN(t) || t < f) return toast.error("Check the page range.");
     if (!note.trim()) return toast.error("Add a sentence or two on what you understood.");
-    setBusy(true);
-    const { data: user } = await supabase.auth.getUser();
-    if (!user.user) { setBusy(false); return; }
-    const { data: row, error } = await supabase
-      .from("reading_sessions")
-      .insert({
-        user_id: user.user.id,
-        book_id: book.id,
-        pages_from: f,
-        pages_to: t,
-        understanding_note: note.trim(),
-      })
-      .select()
-      .single();
-    if (error || !row) { toast.error(error?.message ?? "Failed"); setBusy(false); return; }
-    setSessions((p) => [row as Session, ...p]);
-    setNote("");
-    setFrom(String(t));
-    setTo("");
-    setBook((b) => b ? { ...b, current_page: Math.max(b.current_page, t) } : b);
-
-    // grade via AI (non-blocking-ish, but await for feedback)
-    try {
-      const res = await fetch("/api/reading", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: "score", bookId: book.id, sessionId: (row as Session).id }),
-      });
-      if (res.ok) {
-        const j = (await res.json()) as { score: number; feedback: string };
-        setSessions((p) => p.map((s) => s.id === (row as Session).id ? { ...s, ai_score: j.score, ai_feedback: j.feedback } : s));
-      }
-    } catch {/* ignore */}
-    setBusy(false);
+    logSessionMutation.mutate({ f, t, note: note.trim() });
   }
 
-  async function finishBook() {
-    if (!book || !token) return;
+  function handleFinishBook() {
+    if (!book) return;
     if (!confirm("Mark this book as finished? The AI will write a final report and recommend next reads.")) return;
-    setFinishing(true);
-    try {
-      const res = await fetch("/api/reading", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: "finish", bookId: book.id }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const j = (await res.json()) as { finalScore: number; finalSummary: string };
-      setBook((b) => b ? { ...b, status: "finished", final_score: j.finalScore, final_summary: j.finalSummary } : b);
-      toast.success("Book finished. Check your recommendations!");
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
-    setFinishing(false);
+    finishBookMutation.mutate();
   }
 
-  if (!book || !token) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  const loading = bookLoading || sessionsLoading || threadLoading;
+  if (loading) return <p className="text-sm text-muted-foreground">Loading book details…</p>;
+  if (!book || !token) return <p className="text-sm text-muted-foreground">Book not found.</p>;
 
   const pct = book.total_pages > 0 ? Math.round((book.current_page / book.total_pages) * 100) : 0;
   const scoredSessions = sessions.filter((s) => s.ai_score !== null);
@@ -159,7 +221,7 @@ function BookDetail() {
 
   return (
     <div className="space-y-6">
-      <button onClick={() => nav({ to: "/reading" })} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+      <button onClick={() => nav({ to: "/reading" })} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
         <ArrowLeft className="h-3 w-3" /> Back to library
       </button>
 
@@ -189,7 +251,7 @@ function BookDetail() {
         </div>
 
         {book.status === "finished" && book.final_summary && (
-          <div className="mt-5 rounded-2xl bg-background/30 p-4 ring-1 ring-primary/20">
+          <div className="mt-5 rounded-2xl bg-background/30 p-4 ring-1 ring-primary/20 animate-in fade-in-0 duration-300">
             <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-primary/80">
               <Trophy className="h-3 w-3" /> Final report · {book.final_score}/100
             </p>
@@ -201,7 +263,7 @@ function BookDetail() {
       {book.status === "reading" && (
         <section className="aurora-card rounded-2xl p-4">
           <h2 className="mb-3 font-display text-lg">Log today's reading</h2>
-          <form onSubmit={logSession} className="space-y-3">
+          <form onSubmit={handleLogSession} className="space-y-3">
             <div className="flex gap-2">
               <Input type="number" placeholder="From page" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-background/40" />
               <Input type="number" placeholder="To page" value={to} onChange={(e) => setTo(e.target.value)} className="bg-background/40" />
@@ -214,11 +276,11 @@ function BookDetail() {
               className="bg-background/40"
             />
             <div className="flex justify-between">
-              <Button type="button" variant="ghost" size="sm" onClick={finishBook} disabled={finishing}>
-                {finishing ? "Wrapping up…" : "Mark as finished"}
+              <Button type="button" variant="ghost" size="sm" onClick={handleFinishBook} disabled={finishBookMutation.isPending}>
+                {finishBookMutation.isPending ? "Wrapping up…" : "Mark as finished"}
               </Button>
-              <Button type="submit" disabled={busy}>
-                {busy ? "Saving & grading…" : "Save & get feedback"}
+              <Button type="submit" disabled={logSessionMutation.isPending}>
+                {logSessionMutation.isPending ? "Saving & grading…" : "Save & get feedback"}
               </Button>
             </div>
           </form>
@@ -262,26 +324,26 @@ function BookDetail() {
 }
 
 function BookChat({ threadId, token, bookTitle }: { threadId: string; token: string; bookTitle: string }) {
-  const [initial, setInitial] = useState<UIMessage[] | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
+  const { data: initial = null, isLoading } = useQuery({
+    queryKey: ["book_chat_messages", threadId],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("chat_messages")
         .select("id,role,parts,client_message_id,created_at")
         .eq("thread_id", threadId)
         .order("created_at", { ascending: true });
-      setInitial(
-        (data ?? []).map((m) => ({
-          id: m.client_message_id ?? m.id,
-          role: m.role as UIMessage["role"],
-          parts: m.parts as UIMessage["parts"],
-        })),
-      );
-    })();
-  }, [threadId]);
+      if (error) throw error;
+      return (data ?? []).map((m) => ({
+        id: m.client_message_id ?? m.id,
+        role: m.role as UIMessage["role"],
+        parts: m.parts as UIMessage["parts"],
+      }));
+    },
+  });
 
-  if (initial === null) return <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">Loading chat…</div>;
+  if (isLoading || initial === null) {
+    return <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">Loading chat…</div>;
+  }
 
   return <BookChatWindow threadId={threadId} token={token} bookTitle={bookTitle} initial={initial} />;
 }

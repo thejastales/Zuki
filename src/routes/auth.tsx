@@ -26,8 +26,36 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) nav({ to: "/today" });
+    const isLocal = typeof window !== "undefined" && 
+      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (data.user) {
+        nav({ to: "/today" });
+      } else if (isLocal && !localStorage.getItem("lumen:loggedOut")) {
+        setLoading(true);
+        const testEmail = "dev-test-user@lumen.calm";
+        const testPassword = "dev-password-123456";
+        try {
+          // Attempt sign in
+          let res = await supabase.auth.signInWithPassword({ email: testEmail, password: testPassword });
+          if (res.error) {
+            // Attempt sign up if user doesn't exist
+            const signUpRes = await supabase.auth.signUp({ email: testEmail, password: testPassword });
+            if (signUpRes.error) throw signUpRes.error;
+            
+            // Re-attempt sign in on success
+            res = await supabase.auth.signInWithPassword({ email: testEmail, password: testPassword });
+            if (res.error) throw res.error;
+          }
+          nav({ to: "/today" });
+        } catch (err) {
+          console.error("Local dev auth auto-login failed: ", err);
+          toast.error("Local dev auto-login failed. Please use credentials.");
+        } finally {
+          setLoading(false);
+        }
+      }
     });
   }, [nav]);
 
@@ -35,6 +63,9 @@ function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      try {
+        localStorage.removeItem("lumen:loggedOut");
+      } catch {}
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
           email,
@@ -57,15 +88,34 @@ function AuthPage() {
 
   async function handleGoogle() {
     setLoading(true);
-    const res = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (res.error) {
-      toast.error(res.error.message ?? "Google sign-in failed");
+    try {
+      try {
+        localStorage.removeItem("lumen:loggedOut");
+      } catch {}
+      const isLocal = typeof window !== "undefined" && 
+        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
+      if (isLocal) {
+        // Direct Supabase OAuth for local development
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: `${window.location.origin}/today`,
+          },
+        });
+        if (error) throw error;
+      } else {
+        // Keep Lovable Cloud Auth for production compatibility
+        const res = await lovable.auth.signInWithOAuth("google", {
+          redirect_uri: window.location.origin,
+        });
+        if (res.error) throw res.error;
+        if (!res.redirected) nav({ to: "/today" });
+      }
+    } catch (err) {
+      toast.error((err as Error).message ?? "Google sign-in failed");
       setLoading(false);
-      return;
     }
-    if (!res.redirected) nav({ to: "/today" });
   }
 
   return (
@@ -113,6 +163,22 @@ function AuthPage() {
         <Button onClick={handleGoogle} variant="outline" disabled={loading} className="w-full">
           Continue with Google
         </Button>
+
+        {typeof window !== "undefined" && 
+         (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") && 
+         localStorage.getItem("lumen:loggedOut") && (
+          <div className="mt-4 p-3 rounded-2xl bg-primary/10 border border-primary/20 text-center animate-in fade-in-0 duration-200">
+            <p className="text-xs text-primary font-medium mb-2">Development Auto-Login is Paused</p>
+            <Button size="sm" onClick={() => {
+              try {
+                localStorage.removeItem("lumen:loggedOut");
+              } catch {}
+              window.location.reload();
+            }} className="w-full">
+              Re-enable Auto-Login
+            </Button>
+          </div>
+        )}
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {mode === "signin" ? "New here?" : "Already have an account?"}{" "}

@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
@@ -11,6 +10,9 @@ import { Plus, Clock, Trash2, ArrowRight, ArrowLeft, Sparkles, Quote } from "luc
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { MOODS, quoteForMood, randomMotivation, type MoodKey } from "@/lib/quotes";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { format } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/today")({
   ssr: false,
@@ -35,107 +37,208 @@ const COLUMNS: { key: Task["status"]; label: string; accent: string }[] = [
   { key: "completed", label: "Completed", accent: "from-[oklch(0.55_0.14_155)] to-transparent" },
 ];
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => format(new Date(), "yyyy-MM-dd");
 
 function TodayPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+  const currentDate = useMemo(() => today(), []);
+
   const [title, setTitle] = useState("");
   const [time, setTime] = useState("");
   const [duration, setDuration] = useState("");
 
-  // mood check-in
+  // mood check-in states
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [score, setScore] = useState<number[]>([7]);
   const [mood, setMood] = useState<MoodKey>("neutral");
-  const [todayQuote, setTodayQuote] = useState<{ text: string; author: string } | null>(null);
+
+  // mobile tab state
+  const [activeTab, setActiveTab] = useState<Task["status"]>("todo");
 
   const motivation = useMemo(() => randomMotivation(), []);
 
+  // Fetch tasks
+  const { data: tasks = [], isLoading: tasksLoading } = useQuery({
+    queryKey: ["tasks", currentDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("task_date", currentDate)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Task[];
+    },
+  });
+
+  // Fetch mood check-in
+  const { data: moodCheckin, isLoading: moodLoading } = useQuery({
+    queryKey: ["mood_checkin", currentDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mood_checkins")
+        .select("*")
+        .eq("checkin_date", currentDate)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Pop up check-in modal if none exists for today
   useEffect(() => {
-    (async () => {
-      const [{ data: t }, { data: checkin }] = await Promise.all([
-        supabase
-          .from("tasks")
-          .select("*")
-          .eq("task_date", today())
-          .order("sort_order", { ascending: true })
-          .order("created_at", { ascending: true }),
-        supabase.from("mood_checkins").select("*").eq("checkin_date", today()).maybeSingle(),
-      ]);
-      setTasks((t ?? []) as Task[]);
-      if (checkin) {
-        setTodayQuote({ text: checkin.quote ?? "", author: checkin.quote_author ?? "" });
-      } else {
-        setCheckinOpen(true);
+    if (!moodLoading && !moodCheckin) {
+      setCheckinOpen(true);
+    }
+  }, [moodCheckin, moodLoading]);
+
+  // Mutations
+  const addTaskMutation = useMutation({
+    mutationFn: async ({ title, time, duration }: { title: string; time: string; duration: string }) => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+      const { data, error } = await supabase
+        .from("tasks")
+        .insert({
+          user_id: user.user.id,
+          title: title.trim(),
+          scheduled_time: time || null,
+          duration_minutes: duration ? parseInt(duration) : null,
+          task_date: currentDate,
+          status: "todo",
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", currentDate] });
+      setTitle("");
+      setTime("");
+      setDuration("");
+      toast.success("Intention added.");
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
+
+  const moveTaskMutation = useMutation({
+    mutationFn: async ({ task, nextStatus }: { task: Task; nextStatus: Task["status"] }) => {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ status: nextStatus })
+        .eq("id", task.id);
+      if (error) throw error;
+    },
+    onMutate: async ({ task, nextStatus }) => {
+      await queryClient.cancelQueries({ queryKey: ["tasks", currentDate] });
+      const previousTasks = queryClient.getQueryData<Task[]>(["tasks", currentDate]);
+      if (previousTasks) {
+        queryClient.setQueryData<Task[]>(
+          ["tasks", currentDate],
+          previousTasks.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t)),
+        );
       }
-      setLoading(false);
-    })();
-  }, []);
+      return { previousTasks };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(["tasks", currentDate], context.previousTasks);
+      }
+      toast.error(err.message);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", currentDate] });
+    },
+  });
 
-  async function addTask(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim()) return;
-    const { data: user } = await supabase.auth.getUser();
-    if (!user.user) return;
-    const { data, error } = await supabase
-      .from("tasks")
-      .insert({
-        user_id: user.user.id,
-        title: title.trim(),
-        scheduled_time: time || null,
-        duration_minutes: duration ? parseInt(duration) : null,
-        task_date: today(),
-        status: "todo",
-      })
-      .select()
-      .single();
-    if (error) return toast.error(error.message);
-    setTasks((p) => [...p, data as Task]);
-    setTitle("");
-    setTime("");
-    setDuration("");
-  }
+  const removeTaskMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("tasks").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["tasks", currentDate] });
+      const previousTasks = queryClient.getQueryData<Task[]>(["tasks", currentDate]);
+      if (previousTasks) {
+        queryClient.setQueryData<Task[]>(
+          ["tasks", currentDate],
+          previousTasks.filter((t) => t.id !== id),
+        );
+      }
+      return { previousTasks };
+    },
+    onError: (err, id, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(["tasks", currentDate], context.previousTasks);
+      }
+      toast.error(err.message);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", currentDate] });
+    },
+  });
 
-  async function move(task: Task, dir: 1 | -1) {
-    const order: Task["status"][] = ["todo", "in_progress", "completed"];
-    const i = order.indexOf(task.status);
-    const next = order[Math.min(order.length - 1, Math.max(0, i + dir))];
-    if (next === task.status) return;
-    setTasks((p) => p.map((t) => (t.id === task.id ? { ...t, status: next } : t)));
-    const { error } = await supabase.from("tasks").update({ status: next }).eq("id", task.id);
-    if (error) toast.error(error.message);
-  }
-
-  async function remove(task: Task) {
-    setTasks((p) => p.filter((t) => t.id !== task.id));
-    await supabase.from("tasks").delete().eq("id", task.id);
-  }
-
-  async function saveCheckin() {
-    const q = quoteForMood(mood);
-    const { data: user } = await supabase.auth.getUser();
-    if (!user.user) return;
-    const { error } = await supabase.from("mood_checkins").upsert(
-      {
-        user_id: user.user.id,
-        checkin_date: today(),
-        productivity_score: score[0],
-        mood,
-        quote: q.text,
-        quote_author: q.author,
-      },
-      { onConflict: "user_id,checkin_date" },
-    );
-    if (error) return toast.error(error.message);
-    setTodayQuote(q);
-    setCheckinOpen(false);
-    toast.success("Logged. Have a beautiful day.");
-  }
+  const saveCheckinMutation = useMutation({
+    mutationFn: async ({ mood, score }: { mood: MoodKey; score: number }) => {
+      const q = quoteForMood(mood);
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+      const { error } = await supabase.from("mood_checkins").upsert(
+        {
+          user_id: user.user.id,
+          checkin_date: currentDate,
+          productivity_score: score,
+          mood,
+          quote: q.text,
+          quote_author: q.author,
+        },
+        { onConflict: "user_id,checkin_date" },
+      );
+      if (error) throw error;
+      return q;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mood_checkin", currentDate] });
+      setCheckinOpen(false);
+      toast.success("Logged. Have a beautiful day.");
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
 
   const total = tasks.length;
   const done = tasks.filter((t) => t.status === "completed").length;
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+
+  function handleAddTask(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    addTaskMutation.mutate({ title, time, duration });
+  }
+
+  function handleMove(task: Task, dir: 1 | -1) {
+    const order: Task["status"][] = ["todo", "in_progress", "completed"];
+    const i = order.indexOf(task.status);
+    const nextStatus = order[Math.min(order.length - 1, Math.max(0, i + dir))];
+    if (nextStatus === task.status) return;
+    moveTaskMutation.mutate({ task, nextStatus });
+  }
+
+  function handleRemove(task: Task) {
+    removeTaskMutation.mutate(task.id);
+  }
+
+  function handleSaveCheckin() {
+    saveCheckinMutation.mutate({ mood, score: score[0] });
+  }
+
+  const todayQuote = moodCheckin ? { text: moodCheckin.quote ?? "", author: moodCheckin.quote_author ?? "" } : null;
 
   return (
     <div className="space-y-6">
@@ -180,36 +283,63 @@ function TodayPage() {
       </section>
 
       {/* add task */}
-      <form onSubmit={addTask} className="aurora-card flex flex-col gap-2 rounded-2xl p-4 sm:flex-row">
+      <form onSubmit={handleAddTask} className="aurora-card flex flex-col gap-2 rounded-2xl p-4 sm:flex-row">
         <Input
           placeholder="What do you want to do today?"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="flex-1 bg-background/40"
         />
-        <Input
-          type="time"
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-          className="w-full bg-background/40 sm:w-32"
-        />
-        <Input
-          type="number"
-          min={5}
-          step={5}
-          placeholder="min"
-          value={duration}
-          onChange={(e) => setDuration(e.target.value)}
-          className="w-full bg-background/40 sm:w-24"
-        />
-        <Button type="submit" className="sm:w-auto">
+        <div className="flex gap-2">
+          <Input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            className="w-full bg-background/40 sm:w-32"
+          />
+          <Input
+            type="number"
+            min={5}
+            step={5}
+            placeholder="min"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            className="w-full bg-background/40 sm:w-24"
+          />
+        </div>
+        <Button type="submit" disabled={addTaskMutation.isPending} className="sm:w-auto shrink-0">
           <Plus className="h-4 w-4" /> Add
         </Button>
       </form>
 
+      {/* Mobile column selection tabs */}
+      {isMobile && (
+        <div className="flex rounded-xl bg-secondary/40 p-1 ring-1 ring-border/40">
+          {COLUMNS.map((col) => {
+            const count = tasks.filter((t) => t.status === col.key).length;
+            return (
+              <button
+                key={col.key}
+                type="button"
+                onClick={() => setActiveTab(col.key)}
+                className={cn(
+                  "flex-1 rounded-lg py-2 text-center text-xs font-semibold tracking-wide transition-all",
+                  activeTab === col.key
+                    ? "bg-primary/15 text-primary glow"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {col.label} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* board */}
       <div className="grid gap-4 md:grid-cols-3">
         {COLUMNS.map((col) => {
+          if (isMobile && activeTab !== col.key) return null;
           const items = tasks.filter((t) => t.status === col.key);
           return (
             <div key={col.key} className="aurora-card flex flex-col rounded-2xl p-4">
@@ -224,7 +354,7 @@ function TodayPage() {
               <div className="space-y-2">
                 {items.length === 0 && (
                   <p className="rounded-xl border border-dashed border-border/50 p-3 text-center text-xs text-muted-foreground">
-                    {col.key === "todo" && !loading ? "Pause. Breathe. Add your first intention." : "Empty"}
+                    {col.key === "todo" && !tasksLoading ? "Pause. Breathe. Add your first intention." : "Empty"}
                   </p>
                 )}
                 {items.map((t) => (
@@ -254,8 +384,8 @@ function TodayPage() {
                         )}
                       </div>
                       <button
-                        onClick={() => remove(t)}
-                        className="opacity-0 transition-opacity group-hover:opacity-100"
+                        onClick={() => handleRemove(t)}
+                        className="opacity-0 transition-opacity group-hover:opacity-100 cursor-pointer"
                         title="Delete"
                       >
                         <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
@@ -266,7 +396,7 @@ function TodayPage() {
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          onClick={() => move(t, -1)}
+                          onClick={() => handleMove(t, -1)}
                           title="Move back"
                         >
                           <ArrowLeft className="h-3.5 w-3.5" />
@@ -276,7 +406,7 @@ function TodayPage() {
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          onClick={() => move(t, 1)}
+                          onClick={() => handleMove(t, 1)}
                           title="Advance"
                         >
                           <ArrowRight className="h-3.5 w-3.5" />
@@ -324,7 +454,7 @@ function TodayPage() {
                     type="button"
                     onClick={() => setMood(m.key)}
                     className={cn(
-                      "rounded-xl border p-2 text-xs transition-all",
+                      "rounded-xl border p-2 text-xs transition-all cursor-pointer",
                       mood === m.key
                         ? "border-primary bg-primary/15 text-foreground glow"
                         : "border-border/50 bg-background/30 text-muted-foreground hover:border-primary/40",
@@ -336,7 +466,7 @@ function TodayPage() {
                 ))}
               </div>
             </div>
-            <Button onClick={saveCheckin} className="w-full">
+            <Button onClick={handleSaveCheckin} disabled={saveCheckinMutation.isPending} className="w-full">
               Receive today's quote
             </Button>
           </div>

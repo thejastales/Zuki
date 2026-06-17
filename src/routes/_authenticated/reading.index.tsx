@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { BookOpen, Plus, Sparkles, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/reading/")({
   ssr: false,
@@ -29,49 +30,79 @@ type Rec = { id: string; title: string; author: string | null; reason: string | 
 
 function ReadingIndex() {
   const nav = useNavigate();
-  const [books, setBooks] = useState<Book[]>([]);
-  const [recs, setRecs] = useState<Rec[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [pages, setPages] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      const [{ data: b }, { data: r }] = await Promise.all([
-        supabase.from("books").select("*").order("created_at", { ascending: false }),
-        supabase.from("book_recommendations").select("id,title,author,reason").order("created_at", { ascending: false }).limit(6),
-      ]);
-      setBooks((b ?? []) as Book[]);
-      setRecs((r ?? []) as Rec[]);
-      setLoading(false);
-    })();
-  }, []);
+  // Queries
+  const { data: books = [], isLoading: booksLoading } = useQuery({
+    queryKey: ["books"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("books")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as Book[];
+    },
+  });
 
-  async function addBook(e: React.FormEvent) {
+  const { data: recs = [], isLoading: recsLoading } = useQuery({
+    queryKey: ["book_recommendations"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("book_recommendations")
+        .select("id,title,author,reason")
+        .order("created_at", { ascending: false })
+        .limit(6);
+      if (error) throw error;
+      return (data ?? []) as Rec[];
+    },
+  });
+
+  // Mutation to add book
+  const addBookMutation = useMutation({
+    mutationFn: async ({ title, author, pages }: { title: string; author: string; pages: string }) => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+      const { data, error } = await supabase
+        .from("books")
+        .insert({
+          user_id: user.user.id,
+          title: title.trim(),
+          author: author.trim() || null,
+          total_pages: parseInt(pages),
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as Book;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+      setOpen(false);
+      setTitle("");
+      setAuthor("");
+      setPages("");
+      toast.success("Book added to library.");
+      nav({ to: "/reading/$bookId", params: { bookId: data.id } });
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
+
+  function handleAddBook(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim() || !pages) return;
-    const { data: user } = await supabase.auth.getUser();
-    if (!user.user) return;
-    const { data, error } = await supabase
-      .from("books")
-      .insert({
-        user_id: user.user.id,
-        title: title.trim(),
-        author: author.trim() || null,
-        total_pages: parseInt(pages),
-      })
-      .select()
-      .single();
-    if (error) return toast.error(error.message);
-    setOpen(false);
-    setTitle(""); setAuthor(""); setPages("");
-    nav({ to: "/reading/$bookId", params: { bookId: (data as Book).id } });
+    addBookMutation.mutate({ title, author, pages });
   }
 
   const reading = books.filter((b) => b.status === "reading");
   const finished = books.filter((b) => b.status === "finished");
+  const loading = booksLoading || recsLoading;
 
   return (
     <div className="space-y-6">
@@ -91,7 +122,7 @@ function ReadingIndex() {
       <section>
         <h2 className="mb-3 font-display text-xl">Currently reading</h2>
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-sm text-muted-foreground">Loading library…</p>
         ) : reading.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border/50 p-6 text-center text-sm text-muted-foreground">
             No active books. Add one to begin.
@@ -135,11 +166,11 @@ function ReadingIndex() {
             <DialogTitle className="font-display text-2xl">Add a book</DialogTitle>
             <DialogDescription>What are you reading next?</DialogDescription>
           </DialogHeader>
-          <form onSubmit={addBook} className="space-y-3 pt-2">
+          <form onSubmit={handleAddBook} className="space-y-3 pt-2">
             <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} className="bg-background/40" />
             <Input placeholder="Author (optional)" value={author} onChange={(e) => setAuthor(e.target.value)} className="bg-background/40" />
             <Input type="number" min={1} placeholder="Total pages" value={pages} onChange={(e) => setPages(e.target.value)} className="bg-background/40" />
-            <Button type="submit" className="w-full">Add</Button>
+            <Button type="submit" disabled={addBookMutation.isPending} className="w-full">Add</Button>
           </form>
         </DialogContent>
       </Dialog>

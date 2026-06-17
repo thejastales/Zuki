@@ -13,23 +13,33 @@ function fire() {
   try {
     localStorage.setItem(STORAGE_KEY, String(Date.now()));
   } catch {}
-  if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-    try {
-      new Notification("💧 Time to drink water", { body: randomWaterNudge() });
-    } catch {}
+
+  if (typeof Notification !== "undefined") {
+    if (Notification.permission === "default") {
+      Notification.requestPermission()
+        .then((permission) => {
+          if (permission === "granted") {
+            try {
+              new Notification("💧 Time to drink water", { body: randomWaterNudge() });
+            } catch {}
+          }
+        })
+        .catch(() => {});
+    } else if (Notification.permission === "granted") {
+      try {
+        new Notification("💧 Time to drink water", { body: randomWaterNudge() });
+      } catch {}
+    }
   }
 }
 
 /**
  * Fires a hydration reminder every 30 minutes while the app is open.
  * Persists last-fired time across reloads so reminders stay spaced.
+ * Requests notification permissions gracefully only when the reminder triggers.
  */
 export function useWaterReminder() {
   useEffect(() => {
-    if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission().catch(() => {});
-    }
-
     let last = 0;
     try {
       last = Number(localStorage.getItem(STORAGE_KEY) ?? 0);
