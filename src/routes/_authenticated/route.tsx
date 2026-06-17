@@ -28,6 +28,7 @@ function AuthedLayout() {
   const navItems = [
     { to: "/today", label: "Today", icon: LayoutGrid },
     { to: "/reading", label: "Reading", icon: BookOpen },
+    { to: "/worry", label: "Worry Time", icon: ShieldAlert },
     { to: "/chat", label: "Lumen Chat", icon: MessageCircleHeart },
   ] as const;
 
