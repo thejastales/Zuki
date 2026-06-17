@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiWorryRouteImport } from './routes/api/worry'
 import { Route as ApiReadingRouteImport } from './routes/api/reading'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
@@ -33,6 +34,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWorryRoute = ApiWorryRouteImport.update({
+  id: '/api/worry',
+  path: '/api/worry',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiReadingRoute = ApiReadingRouteImport.update({
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/today': typeof AuthenticatedTodayRoute
   '/api/chat': typeof ApiChatRoute
   '/api/reading': typeof ApiReadingRoute
+  '/api/worry': typeof ApiWorryRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/reading/$bookId': typeof AuthenticatedReadingBookIdRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/today': typeof AuthenticatedTodayRoute
   '/api/chat': typeof ApiChatRoute
   '/api/reading': typeof ApiReadingRoute
+  '/api/worry': typeof ApiWorryRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/reading/$bookId': typeof AuthenticatedReadingBookIdRoute
   '/chat': typeof AuthenticatedChatIndexRoute
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/_authenticated/today': typeof AuthenticatedTodayRoute
   '/api/chat': typeof ApiChatRoute
   '/api/reading': typeof ApiReadingRoute
+  '/api/worry': typeof ApiWorryRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/_authenticated/reading/$bookId': typeof AuthenticatedReadingBookIdRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/today'
     | '/api/chat'
     | '/api/reading'
+    | '/api/worry'
     | '/chat/$threadId'
     | '/reading/$bookId'
     | '/chat/'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/today'
     | '/api/chat'
     | '/api/reading'
+    | '/api/worry'
     | '/chat/$threadId'
     | '/reading/$bookId'
     | '/chat'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/_authenticated/today'
     | '/api/chat'
     | '/api/reading'
+    | '/api/worry'
     | '/_authenticated/chat/$threadId'
     | '/_authenticated/reading/$bookId'
     | '/_authenticated/chat/'
@@ -161,6 +173,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiReadingRoute: typeof ApiReadingRoute
+  ApiWorryRoute: typeof ApiWorryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -184,6 +197,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/worry': {
+      id: '/api/worry'
+      path: '/api/worry'
+      fullPath: '/api/worry'
+      preLoaderRoute: typeof ApiWorryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/reading': {
@@ -281,6 +301,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ApiChatRoute: ApiChatRoute,
   ApiReadingRoute: ApiReadingRoute,
+  ApiWorryRoute: ApiWorryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
