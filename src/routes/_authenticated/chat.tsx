@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 
 export const Route = createFileRoute("/_authenticated/chat")({
   ssr: false,
-  head: () => ({ meta: [{ title: "Lumen Chat" }] }),
+  head: () => ({ meta: [{ title: "ZUKI Chat" }] }),
   component: ChatLayout,
 });
 

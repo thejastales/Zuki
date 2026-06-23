@@ -57,58 +57,126 @@
 :root, .dark {
   --radius: 0.875rem;
 
-  --background: oklch(0.18 0.04 295);
-  --foreground: oklch(0.96 0.02 300);
+  --background: oklch(0.12 0.025 254);
+  --foreground: oklch(0.97 0.01 260);
 
-  --card: oklch(0.23 0.05 295);
-  --card-foreground: oklch(0.96 0.02 300);
+  --card: oklch(0.17 0.03 256 / 0.75);
+  --card-foreground: oklch(0.97 0.01 260);
 
-  --popover: oklch(0.23 0.05 295);
-  --popover-foreground: oklch(0.96 0.02 300);
+  --popover: oklch(0.17 0.03 256);
+  --popover-foreground: oklch(0.97 0.01 260);
 
-  --primary: oklch(0.82 0.09 305);
-  --primary-foreground: oklch(0.20 0.05 295);
+  --primary: oklch(0.83 0.08 290);
+  --primary-foreground: oklch(0.12 0.025 254);
 
-  --secondary: oklch(0.30 0.06 295);
-  --secondary-foreground: oklch(0.94 0.03 300);
+  --secondary: oklch(0.24 0.03 260);
+  --secondary-foreground: oklch(0.94 0.02 260);
 
-  --muted: oklch(0.27 0.04 295);
-  --muted-foreground: oklch(0.75 0.05 300);
+  --muted: oklch(0.22 0.03 260);
+  --muted-foreground: oklch(0.74 0.02 260);
 
-  --accent: oklch(0.42 0.10 305);
-  --accent-foreground: oklch(0.97 0.02 305);
+  --accent: oklch(0.84 0.07 45);
+  --accent-foreground: oklch(0.12 0.025 254);
 
   --destructive: oklch(0.66 0.20 22);
   --destructive-foreground: oklch(0.98 0 0);
 
-  --border: oklch(0.34 0.05 295 / 70%);
-  --input: oklch(0.34 0.05 295 / 80%);
-  --ring: oklch(0.78 0.10 305);
+  --border: oklch(0.28 0.03 260 / 60%);
+  --input: oklch(0.28 0.03 260 / 70%);
+  --ring: oklch(0.83 0.08 290);
 
-  --chart-1: oklch(0.78 0.10 305);
-  --chart-2: oklch(0.70 0.12 270);
+  --chart-1: oklch(0.83 0.08 290);
+  --chart-2: oklch(0.84 0.07 45);
   --chart-3: oklch(0.82 0.10 340);
   --chart-4: oklch(0.68 0.08 230);
   --chart-5: oklch(0.86 0.07 90);
 
-  --sidebar: oklch(0.20 0.04 295);
-  --sidebar-foreground: oklch(0.94 0.02 300);
-  --sidebar-primary: oklch(0.82 0.09 305);
-  --sidebar-primary-foreground: oklch(0.20 0.05 295);
-  --sidebar-accent: oklch(0.30 0.06 295);
-  --sidebar-accent-foreground: oklch(0.96 0.02 300);
-  --sidebar-border: oklch(0.34 0.05 295 / 70%);
-  --sidebar-ring: oklch(0.78 0.10 305);
+  --sidebar: oklch(0.14 0.025 254);
+  --sidebar-foreground: oklch(0.94 0.02 260);
+  --sidebar-primary: oklch(0.83 0.08 290);
+  --sidebar-primary-foreground: oklch(0.12 0.025 254);
+  --sidebar-accent: oklch(0.24 0.03 260);
+  --sidebar-accent-foreground: oklch(0.97 0.01 260);
+  --sidebar-border: oklch(0.28 0.03 260 / 60%);
+  --sidebar-ring: oklch(0.83 0.08 290);
 
-  --lavender: oklch(0.82 0.09 305);
-  --mist: oklch(0.96 0.02 300);
+  --lavender: oklch(0.83 0.08 290);
+  --mist: oklch(0.97 0.01 260);
 
-  --gradient-dusk: linear-gradient(135deg, oklch(0.22 0.05 285), oklch(0.28 0.07 305) 50%, oklch(0.35 0.09 330));
-  --gradient-aurora: radial-gradient(ellipse at top, oklch(0.45 0.12 305 / 0.55), transparent 60%),
-                     radial-gradient(ellipse at bottom right, oklch(0.40 0.14 340 / 0.40), transparent 55%),
-                     radial-gradient(ellipse at bottom left, oklch(0.40 0.12 260 / 0.35), transparent 55%);
-  --shadow-soft: 0 10px 40px -10px oklch(0.10 0.04 295 / 0.55);
-  --shadow-glow: 0 0 32px oklch(0.78 0.10 305 / 0.25);
+  --gradient-dusk: linear-gradient(135deg, oklch(0.14 0.025 250), oklch(0.18 0.03 275) 50%, oklch(0.24 0.04 300));
+  --gradient-aurora: radial-gradient(circle at 50% -20%, oklch(0.35 0.08 290 / 0.5), transparent 70%),
+                     radial-gradient(circle at 100% 100%, oklch(0.30 0.06 45 / 0.35), transparent 60%),
+                     radial-gradient(circle at 0% 100%, oklch(0.28 0.08 175 / 0.3), transparent 60%);
+  --shadow-soft: 0 10px 40px -10px oklch(0.08 0.02 254 / 0.8);
+  --shadow-glow: 0 0 32px oklch(0.83 0.08 290 / 0.3);
+}
+
+@keyframes aurora-drift {
+  0% {
+    background-position: 0% 0%, 100% 100%, 10% 90%;
+  }
+  33% {
+    background-position: 30% 15%, 70% 35%, 35% 65%;
+  }
+  66% {
+    background-position: 70% 45%, 25% 75%, 85% 15%;
+  }
+  100% {
+    background-position: 0% 0%, 100% 100%, 10% 90%;
+  }
+}
+
+@keyframes box-breathing {
+  0%, 100% {
+    transform: scale(0.85);
+    box-shadow: 0 0 20px oklch(0.82 0.09 305 / 0.15), inset 0 0 10px oklch(0.82 0.09 305 / 0.05);
+    background-color: oklch(0.82 0.09 305 / 0.02);
+  }
+  25% {
+    transform: scale(1.15);
+    box-shadow: 0 0 50px oklch(0.82 0.09 305 / 0.45), inset 0 0 25px oklch(0.82 0.09 305 / 0.25);
+    background-color: oklch(0.82 0.09 305 / 0.12);
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 50px oklch(0.82 0.09 305 / 0.45), inset 0 0 25px oklch(0.82 0.09 305 / 0.25);
+    background-color: oklch(0.82 0.09 305 / 0.12);
+  }
+  75% {
+    transform: scale(0.85);
+    box-shadow: 0 0 20px oklch(0.82 0.09 305 / 0.15), inset 0 0 10px oklch(0.82 0.09 305 / 0.05);
+    background-color: oklch(0.82 0.09 305 / 0.02);
+  }
+}
+
+@keyframes float-gentle {
+  0% {
+    transform: translate(0px, 0px) rotate(0deg);
+  }
+  25% {
+    transform: translate(12px, -18px) rotate(2.5deg);
+  }
+  50% {
+    transform: translate(-8px, -32px) rotate(-2deg);
+  }
+  75% {
+    transform: translate(-18px, -12px) rotate(1.5deg);
+  }
+  100% {
+    transform: translate(0px, 0px) rotate(0deg);
+  }
+}
+
+@keyframes text-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 @layer base {
@@ -123,6 +191,8 @@
   body {
     background-image: var(--gradient-aurora);
     background-attachment: fixed;
+    background-size: 240% 240%, 240% 240%, 240% 240%;
+    animation: aurora-drift 24s ease-in-out infinite alternate;
     min-height: 100vh;
   }
   h1, h2, h3, .font-display {
@@ -132,12 +202,291 @@
 }
 
 @utility aurora-card {
-  background: linear-gradient(150deg, oklch(0.26 0.05 295 / 0.85), oklch(0.22 0.05 295 / 0.7));
-  border: 1px solid oklch(0.45 0.08 305 / 0.25);
-  backdrop-filter: blur(14px);
+  background: linear-gradient(150deg, oklch(0.17 0.03 256 / 0.85), oklch(0.14 0.03 256 / 0.75));
+  border: 1px solid oklch(0.83 0.08 290 / 0.15);
+  backdrop-filter: blur(20px);
   box-shadow: var(--shadow-soft);
+}
+
+@utility interactive-card {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:hover {
+    transform: translateY(-4px) scale(1.01);
+    border-color: oklch(0.83 0.08 290 / 0.45);
+    box-shadow: 0 20px 45px -15px oklch(0.08 0.02 254 / 0.9), 0 0 24px oklch(0.83 0.08 290 / 0.15);
+    background: linear-gradient(150deg, oklch(0.19 0.03 256 / 0.9), oklch(0.16 0.03 256 / 0.8));
+  }
 }
 
 @utility glow {
   box-shadow: var(--shadow-glow);
 }
+
+@utility shimmer-text {
+  background: linear-gradient(
+    90deg,
+    oklch(0.96 0.02 300) 0%,
+    oklch(0.82 0.09 305) 25%,
+    oklch(0.65 0.12 340) 50%,
+    oklch(0.82 0.09 305) 75%,
+    oklch(0.96 0.02 300) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: text-shimmer 6s linear infinite;
+}
+
+@utility breath-circle {
+  animation: box-breathing 16s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@utility animate-float {
+  animation: float-gentle 4s ease-in-out infinite;
+}
+
+/* Onboarding Splash Welcome Animations */
+@keyframes fade-blur-in {
+  0% {
+    opacity: 0;
+    filter: blur(20px);
+    transform: translateY(16px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0px) scale(1);
+  }
+}
+
+@keyframes splash-dissolve {
+  0% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(30px);
+    transform: scale(1.05);
+    pointer-events: none;
+  }
+}
+
+@keyframes wind-sway {
+  0% {
+    transform: translate(0px, 0px) rotate(0deg);
+  }
+  33% {
+    transform: translate(-18px, 15px) rotate(-3deg);
+  }
+  66% {
+    transform: translate(15px, -18px) rotate(2.5deg);
+  }
+  100% {
+    transform: translate(0px, 0px) rotate(0deg);
+  }
+}
+
+@keyframes stone-balance {
+  0% {
+    transform: translate(0px, 0px) rotate(0deg);
+  }
+  25% {
+    transform: translate(-10px, -15px) rotate(-1.5deg);
+  }
+  50% {
+    transform: translate(15px, -8px) rotate(1deg);
+  }
+  75% {
+    transform: translate(5px, -22px) rotate(-2deg);
+  }
+  100% {
+    transform: translate(0px, 0px) rotate(0deg);
+  }
+}
+
+@keyframes ripple-pulse {
+  0%, 100% {
+    opacity: 0.12;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(1.08);
+  }
+}
+
+@utility animate-splash-fade {
+  animation: fade-blur-in 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@utility animate-splash-dissolve {
+  animation: splash-dissolve 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@utility animate-sway {
+  animation: wind-sway 6s ease-in-out infinite;
+}
+
+@utility animate-balance {
+  animation: stone-balance 5s ease-in-out infinite;
+}
+
+@utility animate-ripple {
+  animation: ripple-pulse 4s ease-in-out infinite;
+}
+
+@keyframes active-star-twinkle {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(0.7) rotate(0deg);
+    filter: drop-shadow(0 0 2px currentColor);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2) rotate(180deg);
+    filter: drop-shadow(0 0 6px currentColor);
+  }
+}
+
+@utility animate-star-twinkle {
+  animation: active-star-twinkle 4s ease-in-out infinite;
+}
+
+@utility doodle-highlight {
+  filter: drop-shadow(0 0 8px oklch(0.78 0.12 285 / 0.45));
+}
+
+@keyframes doodle-pulse-slow {
+  0%, 100% {
+    opacity: 0.35;
+    transform: translate(0px, 0px) rotate(0deg) scale(0.96);
+    filter: drop-shadow(0 0 10px currentColor);
+  }
+  33% {
+    opacity: 0.70;
+    transform: translate(25px, -30px) rotate(1.5deg) scale(1.03);
+    filter: drop-shadow(0 0 18px currentColor);
+  }
+  66% {
+    opacity: 0.50;
+    transform: translate(-20px, 40px) rotate(-1.5deg) scale(0.98);
+    filter: drop-shadow(0 0 12px currentColor);
+  }
+}
+
+@keyframes doodle-pulse-medium {
+  0%, 100% {
+    opacity: 0.45;
+    transform: translate(0px, 0px) rotate(0deg) scale(0.95);
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+  33% {
+    opacity: 0.85;
+    transform: translate(-30px, -25px) rotate(-2deg) scale(1.04);
+    filter: drop-shadow(0 0 20px currentColor);
+  }
+  66% {
+    opacity: 0.60;
+    transform: translate(35px, 30px) rotate(2deg) scale(0.97);
+    filter: drop-shadow(0 0 14px currentColor);
+  }
+}
+
+/* Premium polishing animations */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes sparkle-bounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-6px) scale(1.2);
+    opacity: 1;
+  }
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-50px) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@utility animate-fade-in-up {
+  animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@utility animate-sparkle-bounce-1 {
+  animation: sparkle-bounce 1s ease-in-out infinite;
+}
+
+@utility animate-sparkle-bounce-2 {
+  animation: sparkle-bounce 1s ease-in-out infinite;
+  animation-delay: 0.2s;
+}
+
+@utility animate-sparkle-bounce-3 {
+  animation: sparkle-bounce 1s ease-in-out infinite;
+  animation-delay: 0.4s;
+}
+
+@utility animate-confetti-slow {
+  animation: confetti-fall 4s linear infinite;
+}
+
+@utility animate-confetti-medium {
+  animation: confetti-fall 3s linear infinite;
+}
+
+@utility animate-confetti-fast {
+  animation: confetti-fall 2s linear infinite;
+}
+
+/* Typing indicator animations */
+@keyframes bubble-dot-bounce {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@utility animate-dot-1 {
+  animation: bubble-dot-bounce 1.2s infinite ease-in-out;
+}
+
+@utility animate-dot-2 {
+  animation: bubble-dot-bounce 1.2s infinite ease-in-out;
+  animation-delay: 0.2s;
+}
+
+@utility animate-dot-3 {
+  animation: bubble-dot-bounce 1.2s infinite ease-in-out;
+  animation-delay: 0.4s;
+}
+
+

@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/worry")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Worry Time — Lumen" },
+      { title: "Worry Time — ZUKI" },
       {
         name: "description",
         content:
@@ -56,7 +56,7 @@ type WorryReport = {
 };
 
 const DEFAULT_MINUTES = 20;
-const TIMER_KEY = "lumen:worryTimer";
+const TIMER_KEY = "zuki:worryTimer";
 
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 
@@ -350,7 +350,7 @@ function WorryDashboard() {
       </div>
 
       {/* Daily motivational quote */}
-      <Card className="aurora-card border-primary/20 p-5">
+      <Card className="aurora-card border-primary/25 p-5 interactive-card shadow-soft">
         <p className="text-xs uppercase tracking-widest text-primary/80">Today's spark</p>
         <p className="mt-2 font-display text-xl italic leading-snug">"{quote.quote}"</p>
         <p className="mt-1 text-sm text-muted-foreground">— {quote.author}</p>
@@ -396,7 +396,7 @@ function WorryDashboard() {
       {(!isMobile || activeDashboardTab === "worries") && (
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Add + list */}
-          <Card className="p-5">
+          <Card className="aurora-card p-5 interactive-card shadow-soft">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-xl">Today's worries</h2>
               <span className="text-xs text-muted-foreground">{todaysWorries.length} logged</span>
@@ -477,49 +477,115 @@ function WorryDashboard() {
           </Card>
 
           {/* Timer + reflections */}
-          <Card className="p-5">
+          <Card className="aurora-card p-5 interactive-card shadow-soft">
             <div className="flex items-center gap-2">
               <Timer className="h-5 w-5 text-primary animate-pulse" />
               <h2 className="font-display text-xl">Worry Time session</h2>
             </div>
 
             {!endsAt ? (
-              <div className="mt-3 space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Sit with your worries for 20 focused minutes. Outside this window, gently park
-                  anything that comes up.
-                </p>
-                <div className="flex gap-2">
-                  <Button onClick={() => handleStartTimer(20)} className="gap-2">
-                    <Play className="h-4 w-4" /> Start 20 min
-                  </Button>
-                  <Button variant="outline" onClick={() => handleStartTimer(10)}>
-                    10 min
-                  </Button>
-                  <Button variant="outline" onClick={() => handleStartTimer(30)}>
-                    30 min
-                  </Button>
+              <div className="mt-3 flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div className="space-y-3 flex-1">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Sit with your worries for 20 focused minutes. Outside this window, gently park
+                    anything that comes up.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button onClick={() => handleStartTimer(20)} className="gap-2 cursor-pointer">
+                      <Play className="h-4 w-4" /> Start 20 min
+                    </Button>
+                    <Button variant="outline" onClick={() => handleStartTimer(10)} className="cursor-pointer">
+                      10 min
+                    </Button>
+                    <Button variant="outline" onClick={() => handleStartTimer(30)} className="cursor-pointer">
+                      30 min
+                    </Button>
+                  </div>
+                </div>
+                {/* Zen stack stone doodle inside the card */}
+                <div className="relative flex items-center justify-center h-28 w-24 shrink-0 overflow-visible animate-balance">
+                  {/* Concentric ripples */}
+                  <div className="absolute inset-0 rounded-full border border-primary/10 animate-ripple scale-95" />
+                  <div className="absolute -inset-2 rounded-full border border-primary/5 animate-ripple delay-500 scale-105" />
+                  
+                  <svg viewBox="0 0 100 120" className="w-16 h-20 stroke-primary/40 stroke-[1.5] fill-primary/5 drop-shadow-md">
+                    {/* Base stone */}
+                    <ellipse cx="50" cy="95" rx="35" ry="14" />
+                    {/* Middle stone */}
+                    <ellipse cx="48" cy="70" rx="27" ry="11" />
+                    {/* Upper stone */}
+                    <ellipse cx="52" cy="48" rx="19" ry="8" />
+                    {/* Top stone */}
+                    <ellipse cx="50" cy="30" rx="12" ry="5.5" />
+                    {/* Balance vertical string guide */}
+                    <path d="M50,15 L50,105" strokeDasharray="3 4" className="stroke-primary/20" />
+                  </svg>
                 </div>
               </div>
             ) : (
-              <div className="mt-3 space-y-3">
-                <div className="flex items-baseline gap-3">
-                  <span className="font-display text-5xl tabular-nums tracking-tighter">
-                    {String(mm).padStart(2, "0")}:{String(ss).padStart(2, "0")}
-                  </span>
-                  <Button size="sm" variant="ghost" onClick={handleCompleteSession} className="gap-1 text-destructive hover:bg-destructive/15">
-                    <Square className="h-3.5 w-3.5" /> end early
+              <div className="mt-4 space-y-6 animate-in fade-in zoom-in-95 duration-500">
+                <div className="flex flex-col items-center justify-center py-6">
+                  {/* Breath visualizer ring container */}
+                  {(() => {
+                    const cycle = 15 - (Math.floor(remainingMs / 1000) % 16);
+                    const phase = cycle < 4 ? "Inhale" : cycle < 8 ? "Hold" : cycle < 12 ? "Exhale" : "Rest";
+                    const scale = (phase === "Inhale" || phase === "Hold") ? 1.15 : 0.85;
+                    return (
+                      <div className="relative flex h-44 w-44 items-center justify-center">
+                        {/* Pulsing breathing ring */}
+                        <div 
+                          className="absolute inset-0 rounded-full border border-primary/30 blur-[2px]" 
+                          style={{ 
+                            transform: `scale(${scale})`, 
+                            transition: 'transform 4s cubic-bezier(0.4, 0, 0.2, 1)',
+                            willChange: 'transform'
+                          }}
+                        />
+                        {/* Secondary soft outer ring */}
+                        <div 
+                          className="absolute -inset-2 rounded-full border border-primary/10 opacity-50 blur-[6px]" 
+                          style={{ 
+                            transform: `scale(${scale})`, 
+                            transition: 'transform 4s cubic-bezier(0.4, 0, 0.2, 1)',
+                            willChange: 'transform'
+                          }}
+                        />
+                        
+                        {/* Centered content */}
+                        <div className="z-10 flex flex-col items-center text-center">
+                          <span className="font-display text-4xl tabular-nums tracking-tighter text-foreground shimmer-text">
+                            {String(mm).padStart(2, "0")}:{String(ss).padStart(2, "0")}
+                          </span>
+                          <span className="mt-2 text-[10px] font-mono tracking-[0.2em] text-primary/80 uppercase animate-pulse">
+                            {phase}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    onClick={handleCompleteSession} 
+                    className="mt-4 gap-1 text-xs text-destructive hover:bg-destructive/15 rounded-xl cursor-pointer"
+                  >
+                    <Square className="h-3 w-3" /> end early
                   </Button>
                 </div>
-                <ScrollArea className="h-56 pr-2">
+                
+                <div className="h-px bg-border/20" />
+                
+                <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Reflections on your worries</h3>
+                <ScrollArea className="h-44 pr-2">
                   <div className="space-y-2">
                     {todaysWorries.length === 0 && (
-                      <p className="text-sm text-muted-foreground italic">
+                      <p className="text-sm text-muted-foreground italic text-center py-4">
                         No worries parked today. Use this window to free-write instead.
                       </p>
                     )}
                     {todaysWorries.map((w) => (
-                      <div key={w.id} className="rounded-xl bg-background/30 p-3 border border-border/20">
+                      <div key={w.id} className="rounded-xl bg-background/30 p-3 border border-border/20 transition-all hover:border-primary/20">
                         <p className="text-sm font-medium">{w.content}</p>
                         <Textarea
                           rows={2}
@@ -528,7 +594,7 @@ function WorryDashboard() {
                           onChange={(e) =>
                             setReflections((r) => ({ ...r, [w.id]: e.target.value }))
                           }
-                          className="mt-2 bg-background/40 text-sm"
+                          className="mt-2 bg-background/40 text-sm focus-visible:ring-primary/40"
                         />
                       </div>
                     ))}
@@ -543,7 +609,7 @@ function WorryDashboard() {
       {/* Row 2: Zuki Trigger & Weekly Reports */}
       {(!isMobile || activeDashboardTab === "zuki") && (
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="p-5 flex flex-col justify-between">
+          <Card className="aurora-card p-5 flex flex-col justify-between interactive-card shadow-soft">
             <div>
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary glow" />
@@ -558,7 +624,7 @@ function WorryDashboard() {
             </Button>
           </Card>
 
-          <Card className="p-5">
+          <Card className="aurora-card p-5 interactive-card shadow-soft">
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
               <h2 className="font-display text-xl">Weekly evaluation</h2>

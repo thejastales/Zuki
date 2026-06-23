@@ -1,5 +1,4 @@
-// Real-life motivational quotes for the Worry Time dashboard.
-// Each quote pairs with an "implement today" action you can actually do.
+// Curated worry-time quotes pairing deep philosophical wisdom with actionable daily tasks.
 export type WorryQuote = {
   quote: string;
   author: string;
@@ -8,94 +7,74 @@ export type WorryQuote = {
 
 export const WORRY_QUOTES: WorryQuote[] = [
   {
-    quote: "You can't stop the waves, but you can learn to surf.",
-    author: "Jon Kabat-Zinn",
-    implement: "When a worry pops up, name it out loud and write it down — then return to what you were doing.",
-  },
-  {
-    quote: "Worry does not empty tomorrow of its sorrow, it empties today of its strength.",
-    author: "Corrie ten Boom",
-    implement: "Set a 20-minute worry window this evening. Outside it, gently park each worry on paper.",
-  },
-  {
-    quote: "Nothing diminishes anxiety faster than action.",
-    author: "Walter Anderson",
-    implement: "Pick one worry and take a 2-minute action on it right now — even an email or a single line written.",
-  },
-  {
-    quote: "You don't have to control your thoughts. You just have to stop letting them control you.",
-    author: "Dan Millman",
-    implement: "Notice one anxious thought today and respond with: 'Noted. I'll meet you at worry time.'",
-  },
-  {
-    quote: "Do the best you can until you know better. Then when you know better, do better.",
-    author: "Maya Angelou",
-    implement: "Review yesterday's worries — keep one lesson, drop the rest.",
-  },
-  {
-    quote: "He who has a why to live for can bear almost any how.",
-    author: "Viktor Frankl",
-    implement: "Write one sentence: why today matters. Re-read it before worry time.",
-  },
-  {
-    quote: "Anxiety is the dizziness of freedom.",
-    author: "Søren Kierkegaard",
-    implement: "Choose one decision you've been postponing and make it before noon.",
-  },
-  {
-    quote: "Discipline equals freedom.",
-    author: "Jocko Willink",
-    implement: "Honour the 20-minute worry window exactly — start on time, end on time.",
-  },
-  {
-    quote: "What we fear doing most is usually what we most need to do.",
-    author: "Tim Ferriss",
-    implement: "Pick the worry you've been avoiding most and put it first on today's list.",
-  },
-  {
-    quote: "You are the sky. Everything else is just the weather.",
-    author: "Pema Chödrön",
-    implement: "When a worry passes through, watch it like weather for 30 seconds before moving on.",
-  },
-  {
-    quote: "Between stimulus and response there is a space. In that space is our power to choose.",
-    author: "Viktor Frankl",
-    implement: "Pause for one breath before reacting to anything that worries you today.",
-  },
-  {
-    quote: "Comparison is the thief of joy.",
-    author: "Theodore Roosevelt",
-    implement: "Mute one feed or person today whose updates trigger anxious comparison.",
-  },
-  {
-    quote: "Whether you think you can, or you think you can't — you're right.",
-    author: "Henry Ford",
-    implement: "Reframe one worry as a sentence starting with 'I can handle…'",
+    quote: "We suffer more often in imagination than in reality.",
+    author: "Seneca",
+    implement: "Write down your worry verbatim. When you see it in ink, ask: 'Is this happening right now, or only in my head?'",
   },
   {
     quote: "What you resist, persists.",
     author: "Carl Jung",
-    implement: "Write down the worry you keep pushing away. Just naming it is the work today.",
+    implement: "Instead of fighting the anxious thought, say to it: 'I see you. We will sit down and discuss this during our Worry Time.'",
+  },
+  {
+    quote: "Between stimulus and response there is a space. In that space is our power to choose our response.",
+    author: "Viktor Frankl",
+    implement: "When an anxious trigger strikes, pause for 4 seconds before typing, speaking, or reacting. Create the space.",
+  },
+  {
+    quote: "You have power over your mind - not outside events. Realize this, and you will find strength.",
+    author: "Marcus Aurelius",
+    implement: "Draw two columns on a page: 'Things I control' and 'Things I don't'. Sort your current worry immediately.",
+  },
+  {
+    quote: "Muddy water is best cleared by leaving it alone.",
+    author: "Alan Watts",
+    implement: "Set a 15-minute timer, close your eyes, and let your thoughts swirl without attempting to fix or organize them.",
+  },
+  {
+    quote: "I am not what happened to me, I am what I choose to become.",
+    author: "Carl Jung",
+    implement: "Write down a worry from your past that no longer affects you. Rip it up or delete it as a symbol of release.",
+  },
+  {
+    quote: "You are the sky. Everything else is just the weather.",
+    author: "Pema Chödrön",
+    implement: "Imagine your worry as a dark cloud. Watch it float across your mind's eye without checking on it or trying to make it rain.",
+  },
+  {
+    quote: "Rule your mind or it will rule you.",
+    author: "Horace",
+    implement: "Dedicate exactly 20 minutes to worry this evening. Outside of this window, do not indulge any anxious thoughts.",
+  },
+  {
+    quote: "People are not disturbed by things, but by the view they take of them.",
+    author: "Epictetus",
+    implement: "Rewrite your main worry from the perspective of an encouraging, objective friend.",
   },
   {
     quote: "Smile, breathe and go slowly.",
     author: "Thich Nhat Hanh",
-    implement: "Take three slow breaths before opening your phone today.",
+    implement: "Take three slow, conscious breaths before unlocking your phone or starting a new work session.",
   },
   {
-    quote: "Hard choices, easy life. Easy choices, hard life.",
-    author: "Jerzy Gregorek",
-    implement: "Make the one hard call/message you've been putting off today.",
+    quote: "The components of anxiety are not outside. They are loops of the mind. Break the loop with a physical shift.",
+    author: "Dr. Joe Dispenza",
+    implement: "When anxiety mounts, stand up, stretch your arms, drink a glass of water, and change your physical environment.",
   },
   {
-    quote: "Most of our happiness or misery depends on our dispositions, not our circumstances.",
-    author: "Martha Washington",
-    implement: "Before worry time, list 3 things that went right today — however small.",
+    quote: "The cave you fear to enter holds the treasure you seek.",
+    author: "Joseph Campbell",
+    implement: "What is the single conversation, email, or draft you are avoiding? Put it first on your list today.",
   },
   {
-    quote: "Action is the antidote to despair.",
-    author: "Joan Baez",
-    implement: "Convert one worry into one tiny, doable next step before bed.",
+    quote: "It does not do to dwell on dreams and forget to live.",
+    author: "J.K. Rowling",
+    implement: "Notice one detail in your physical room right now—a shadow, a texture, a sound. Ground yourself in the present.",
+  },
+  {
+    quote: "Anxiety is the dizziness of freedom.",
+    author: "Søren Kierkegaard",
+    implement: "Choose one pending decision that you've been putting off and finalize it before the sun goes down today.",
   },
 ];
 

@@ -1,5 +1,6 @@
 import { createFileRoute, useParams, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "motion/react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ type Book = {
   status: "reading" | "finished" | "abandoned";
   final_score: number | null;
   final_summary: string | null;
+  cover_url?: string | null;
 };
 
 type Session = {
@@ -48,6 +50,7 @@ function BookDetail() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [note, setNote] = useState("");
+  const [showCelebration, setShowCelebration] = useState(false);
 
   // Get active session token
   const { data: session } = useQuery({
@@ -123,6 +126,40 @@ function BookDetail() {
     },
   });
 
+  // Get book insights
+  const { data: insights = null, refetch: refetchInsights } = useQuery({
+    queryKey: ["book_insights", bookId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("book_insights")
+        .select("*")
+        .eq("book_id", bookId)
+        .maybeSingle();
+      if (error) return null;
+      return data;
+    }
+  });
+
+  const generateInsightsMutation = useMutation({
+    mutationFn: async () => {
+      if (!token) throw new Error("Authentication token is missing.");
+      const res = await fetch("/api/reading", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "generate_insights", bookId }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return await res.json();
+    },
+    onSuccess: () => {
+      refetchInsights();
+      toast.success("Zuki compiled your book insights! 📚✨");
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    }
+  });
+
   // Mutations
   const logSessionMutation = useMutation({
     mutationFn: async ({ f, t, note }: { f: number; t: number; note: string }) => {
@@ -186,6 +223,7 @@ function BookDetail() {
       queryClient.invalidateQueries({ queryKey: ["book", bookId] });
       queryClient.invalidateQueries({ queryKey: ["books"] });
       queryClient.invalidateQueries({ queryKey: ["book_recommendations"] });
+      setShowCelebration(true);
       toast.success("Book completed! Recommending next reads.");
     },
     onError: (err) => {
@@ -220,104 +258,340 @@ function BookDetail() {
     : null;
 
   return (
-    <div className="space-y-6">
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="space-y-6"
+    >
       <button onClick={() => nav({ to: "/reading" })} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
         <ArrowLeft className="h-3 w-3" /> Back to library
       </button>
 
-      <section className="aurora-card rounded-3xl p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-primary/80">
-              <BookOpen className="h-3 w-3" /> {book.status === "finished" ? "Finished" : "Reading"}
-            </p>
-            <h1 className="font-display text-3xl">{book.title}</h1>
-            {book.author && <p className="text-sm text-muted-foreground">{book.author}</p>}
-          </div>
-          <div className="min-w-[200px] space-y-2">
-            <div className="flex items-baseline justify-between">
-              <span className="text-xs uppercase tracking-widest text-muted-foreground">Progress</span>
-              <span className="font-display text-2xl text-primary">{pct}%</span>
+      <section className="aurora-card rounded-3xl p-6 relative overflow-hidden interactive-card shadow-soft">
+        <div className="flex flex-col gap-6 md:flex-row items-center md:items-start">
+          <BookCover title={book.title} author={book.author} coverUrl={book.cover_url} size="large" />
+          <div className="flex-1 min-w-0 flex flex-col justify-between h-full space-y-4 w-full">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between w-full">
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-primary/80">
+                  <BookOpen className="h-3 w-3" /> {book.status === "finished" ? "Finished" : "Reading"}
+                </p>
+                <h1 className="font-display text-3xl mt-1">{book.title}</h1>
+                {book.author && <p className="text-sm text-muted-foreground mt-0.5">{book.author}</p>}
+              </div>
+              <div className="min-w-[200px] space-y-2 w-full sm:w-auto">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xs uppercase tracking-widest text-muted-foreground">Progress</span>
+                  <span className="font-display text-2xl text-primary">{pct}%</span>
+                </div>
+                <Progress value={pct} className="h-2" />
+                <p className="text-xs text-muted-foreground">{book.current_page} / {book.total_pages} pages</p>
+                {overall !== null && (
+                  <div className="mt-2 flex items-center justify-between rounded-xl bg-background/30 px-3 py-2 ring-1 ring-primary/15">
+                    <span className="text-xs text-muted-foreground">Understanding</span>
+                    <span className="font-display text-primary">{overall}/100</span>
+                  </div>
+                )}
+              </div>
             </div>
-            <Progress value={pct} className="h-2" />
-            <p className="text-xs text-muted-foreground">{book.current_page} / {book.total_pages} pages</p>
-            {overall !== null && (
-              <div className="mt-2 flex items-center justify-between rounded-xl bg-background/30 px-3 py-2 ring-1 ring-primary/15">
-                <span className="text-xs text-muted-foreground">Understanding</span>
-                <span className="font-display text-primary">{overall}/100</span>
+
+            {book.status === "finished" && book.final_summary && (
+              <div className="mt-5 rounded-2xl bg-background/30 p-4 ring-1 ring-primary/20 animate-in fade-in-0 duration-300 w-full">
+                <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-accent font-semibold">
+                  <Trophy className="h-3 w-3 text-accent animate-bounce" /> Final report · {book.final_score}/100
+                </p>
+                <p className="mt-2 text-sm leading-relaxed">{book.final_summary}</p>
               </div>
             )}
           </div>
         </div>
-
-        {book.status === "finished" && book.final_summary && (
-          <div className="mt-5 rounded-2xl bg-background/30 p-4 ring-1 ring-primary/20 animate-in fade-in-0 duration-300">
-            <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-primary/80">
-              <Trophy className="h-3 w-3" /> Final report · {book.final_score}/100
-            </p>
-            <p className="mt-2 text-sm leading-relaxed">{book.final_summary}</p>
-          </div>
-        )}
       </section>
 
-      {book.status === "reading" && (
-        <section className="aurora-card rounded-2xl p-4">
-          <h2 className="mb-3 font-display text-lg">Log today's reading</h2>
-          <form onSubmit={handleLogSession} className="space-y-3">
-            <div className="flex gap-2">
-              <Input type="number" placeholder="From page" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-background/40" />
-              <Input type="number" placeholder="To page" value={to} onChange={(e) => setTo(e.target.value)} className="bg-background/40" />
-            </div>
-            <Textarea
-              placeholder="What did you understand from today's reading? Ideas, quotes that hit, questions you still have…"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={4}
-              className="bg-background/40"
-            />
-            <div className="flex justify-between">
-              <Button type="button" variant="ghost" size="sm" onClick={handleFinishBook} disabled={finishBookMutation.isPending}>
-                {finishBookMutation.isPending ? "Wrapping up…" : "Mark as finished"}
-              </Button>
-              <Button type="submit" disabled={logSessionMutation.isPending}>
-                {logSessionMutation.isPending ? "Saving & grading…" : "Save & get feedback"}
-              </Button>
-            </div>
-          </form>
-        </section>
-      )}
 
-      {sessions.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="font-display text-lg">Your sessions</h2>
-          <div className="space-y-2">
-            {sessions.map((s) => (
-              <div key={s.id} className="aurora-card rounded-2xl p-4">
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-sm">
-                    <span className="text-muted-foreground">{s.session_date} · </span>
-                    pp {s.pages_from}–{s.pages_to}
-                  </p>
-                  {s.ai_score !== null && (
-                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">{s.ai_score}/100</span>
-                  )}
+      <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+        <div className="space-y-6">
+          {book.status === "reading" && (
+            <section className="aurora-card rounded-2xl p-4">
+              <h2 className="mb-3 font-display text-lg">Log today's reading</h2>
+              <form onSubmit={handleLogSession} className="space-y-3">
+                <div className="flex gap-2">
+                  <Input type="number" placeholder="From page" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-background/40" />
+                  <Input type="number" placeholder="To page" value={to} onChange={(e) => setTo(e.target.value)} className="bg-background/40" />
                 </div>
-                <p className="mt-2 whitespace-pre-wrap text-sm">{s.understanding_note}</p>
-                {s.ai_feedback && (
-                  <p className="mt-2 flex items-start gap-2 rounded-xl bg-background/30 p-3 text-xs text-muted-foreground ring-1 ring-primary/10">
-                    <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary" /> {s.ai_feedback}
-                  </p>
+                <Textarea
+                  placeholder="What did you understand from today's reading? Ideas, quotes that hit, questions you still have…"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={4}
+                  className="bg-background/40"
+                />
+                <div className="flex justify-between">
+                  <Button type="button" variant="ghost" size="sm" onClick={handleFinishBook} disabled={finishBookMutation.isPending}>
+                    {finishBookMutation.isPending ? "Wrapping up…" : "Mark as finished"}
+                  </Button>
+                  <Button type="submit" disabled={logSessionMutation.isPending}>
+                    {logSessionMutation.isPending ? "Saving & grading…" : "Save & get feedback"}
+                  </Button>
+                </div>
+              </form>
+            </section>
+          )}
+
+          {/* Zuki Reading Insights */}
+          <div className="aurora-card rounded-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display text-base flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary animate-pulse" /> ZUKI Reading Insights
+              </h3>
+              {insights && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => generateInsightsMutation.mutate()} 
+                  disabled={generateInsightsMutation.isPending}
+                  className="text-xs h-7 px-2 cursor-pointer"
+                >
+                  {generateInsightsMutation.isPending ? "Refreshing..." : "🔄 Refresh"}
+                </Button>
+              )}
+            </div>
+
+            {!insights ? (
+              <div className="text-center py-6 space-y-3 border border-dashed border-border/40 rounded-xl">
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  Zuki can analyze this book and generate reflection prompts, quotes, and personal applications connecting its ideas to your goals and worries.
+                </p>
+                <Button 
+                  onClick={() => generateInsightsMutation.mutate()} 
+                  disabled={generateInsightsMutation.isPending}
+                  size="sm"
+                  className="text-xs cursor-pointer"
+                >
+                  {generateInsightsMutation.isPending ? "Generating ZUKI Insights..." : "Generate Reading Insights"}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Key Ideas */}
+                {insights.key_ideas?.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="text-[9px] uppercase tracking-widest text-primary font-bold">Key Ideas</span>
+                    <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1 pl-1">
+                      {insights.key_ideas.map((idea: string, i: number) => (
+                        <li key={i}>{idea}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Personal Applications */}
+                {insights.personal_applications?.length > 0 && (
+                  <div className="space-y-1 p-3 rounded-xl bg-primary/5 border border-primary/20">
+                    <span className="text-[9px] uppercase tracking-widest text-accent font-bold">Personal Connection</span>
+                    <ul className="list-disc list-inside text-xs text-foreground/90 space-y-1 pl-1">
+                      {insights.personal_applications.map((app: string, i: number) => (
+                        <li key={i}>{app}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Reflection Prompts */}
+                {insights.reflection_prompts?.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold">Reflection Prompts</span>
+                    <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1 pl-1">
+                      {insights.reflection_prompts.map((p: string, i: number) => (
+                        <li key={i} className="italic">"{p}"</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Quotes */}
+                {insights.quotes?.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="text-[9px] uppercase tracking-widest text-rose-300 font-bold">Quotes worth remembering</span>
+                    <div className="space-y-2 pl-1">
+                      {insights.quotes.map((q: string, i: number) => (
+                        <p key={i} className="text-xs italic text-muted-foreground pl-3 border-l-2 border-rose-300/40">"{q}"</p>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
-            ))}
+            )}
           </div>
-        </section>
-      )}
 
-      {threadId && (
-        <section className="aurora-card flex h-[520px] flex-col rounded-2xl">
-          <BookChat threadId={threadId} token={token} bookTitle={book.title} />
-        </section>
+          {sessions.length > 0 && (
+            <section className="space-y-2">
+              <h2 className="font-display text-lg">Your sessions</h2>
+              <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                {sessions.map((s) => (
+                  <div key={s.id} className="aurora-card rounded-2xl p-4">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="text-sm">
+                        <span className="text-muted-foreground">{s.session_date} · </span>
+                        pp {s.pages_from}–{s.pages_to}
+                      </p>
+                      {s.ai_score !== null && (
+                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">{s.ai_score}/100</span>
+                      )}
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm">{s.understanding_note}</p>
+                    {s.ai_feedback && (
+                      <p className="mt-2 flex items-start gap-2 rounded-xl bg-background/30 p-3 text-xs text-muted-foreground ring-1 ring-primary/10">
+                        <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary" /> {s.ai_feedback}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        <div>
+          {threadId && (
+            <section className="aurora-card flex h-[580px] flex-col rounded-2xl lg:sticky lg:top-4">
+              <BookChat threadId={threadId} token={token} bookTitle={book.title} />
+            </section>
+          )}
+        </div>
+      </div>
+
+      {/* Book Finished Celebration Overlay */}
+      {showCelebration && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-md select-none animate-in fade-in-0 duration-500">
+          {/* Confetti particles */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            {Array.from({ length: 45 }).map((_, idx) => {
+              const left = Math.random() * 100;
+              const delay = Math.random() * 3;
+              const durationClass = idx % 3 === 0 ? "animate-confetti-slow" : idx % 3 === 1 ? "animate-confetti-medium" : "animate-confetti-fast";
+              const colors = ["bg-primary", "bg-accent", "bg-amber-400", "bg-purple-400", "bg-emerald-400", "bg-blue-400"];
+              const randomColor = colors[Math.floor(Math.random() * colors.length)];
+              const size = Math.random() * 10 + 6;
+              const rotation = Math.random() * 360;
+              return (
+                <div
+                  key={idx}
+                  className={cn("absolute rounded-sm opacity-80", randomColor, durationClass)}
+                  style={{
+                    left: `${left}%`,
+                    top: `-20px`,
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    animationDelay: `${delay}s`,
+                    transform: `rotate(${rotation}deg)`
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          {/* Celebration Card */}
+          <div className="aurora-card max-w-md w-full mx-4 rounded-3xl p-8 text-center relative overflow-hidden interactive-card glow animate-in zoom-in-95 duration-500 border border-primary/45">
+            <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-accent/5 pointer-events-none" />
+            <div className="relative z-10 flex flex-col items-center gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-accent/15 text-accent flex items-center justify-center glow animate-bounce">
+                <Trophy className="h-8 w-8 text-accent" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs uppercase tracking-[0.2em] text-accent font-semibold">Milestone Unlocked</p>
+                <h2 className="font-display text-3xl sm:text-4xl text-foreground font-bold">Book Completed!</h2>
+              </div>
+              <p className="text-muted-foreground text-sm max-w-sm mt-1">
+                "Every book completed is a chapter added to the story of who you are becoming."
+              </p>
+              <div className="w-full h-px bg-border/20 my-2" />
+              <div className="text-left w-full bg-background/25 rounded-2xl p-4 border border-primary/20">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider block">Finished Book</span>
+                <span className="font-display text-lg font-semibold text-foreground mt-0.5 block truncate">{book?.title}</span>
+                {book?.author && <span className="text-xs text-muted-foreground block">— {book.author}</span>}
+              </div>
+              <Button onClick={() => setShowCelebration(false)} className="w-full mt-2 glow">
+                View final report & scores
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+function BookCover({ title, author, coverUrl, size = "small" }: { title: string; author: string | null; coverUrl?: string | null; size?: "small" | "large" }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const getHash = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return Math.abs(hash);
+  };
+
+  const hash = getHash(title);
+  
+  const gradients = [
+    "from-[oklch(0.20_0.04_250)] to-[oklch(0.35_0.08_290)]", // Lavender Dusk
+    "from-[oklch(0.22_0.04_180)] to-[oklch(0.32_0.08_150)]", // Forest Sage
+    "from-[oklch(0.20_0.05_20)] to-[oklch(0.33_0.08_40)]",   // Clay Rose
+    "from-[oklch(0.18_0.03_280)] to-[oklch(0.28_0.07_310)]", // Deep Iris
+    "from-[oklch(0.23_0.03_90)] to-[oklch(0.33_0.06_70)]",   // Ochre Wheat
+    "from-[oklch(0.19_0.04_220)] to-[oklch(0.30_0.08_240)]", // Ocean Teal
+  ];
+
+  const gradient = gradients[hash % gradients.length];
+  const isLarge = size === "large";
+
+  if (coverUrl && !imgFailed) {
+    return (
+      <div 
+        className={cn(
+          "relative rounded-xl overflow-hidden bg-zinc-950 flex flex-col justify-between border border-primary/20 shadow-md shrink-0",
+          isLarge ? "h-64 w-44" : "h-28 w-20"
+        )}
+      >
+        <img 
+          src={coverUrl} 
+          alt={title} 
+          className="w-full h-full object-cover" 
+          onError={() => setImgFailed(true)}
+        />
+        {/* Visual book crease/spine line */}
+        <div className="absolute left-2 top-0 bottom-0 w-[1px] bg-white/10 shadow-[1px_0_3px_rgba(0,0,0,0.3)] pointer-events-none" />
+        {/* Decorative design frame */}
+        <div className="absolute inset-1.5 border border-white/5 rounded-lg pointer-events-none" />
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className={cn(
+        "relative rounded-xl overflow-hidden bg-gradient-to-br flex flex-col justify-between p-3 text-center border border-primary/20 shadow-md shrink-0",
+        gradient,
+        isLarge ? "h-64 w-44" : "h-28 w-20"
+      )}
+    >
+      {/* Visual book crease/spine line */}
+      <div className="absolute left-2 top-0 bottom-0 w-[1px] bg-white/10 shadow-[1px_0_3px_rgba(0,0,0,0.3)] pointer-events-none" />
+      
+      {/* Decorative design frame */}
+      <div className="absolute inset-1.5 border border-white/5 rounded-lg pointer-events-none" />
+      
+      <div className="mt-1 space-y-0.5 relative z-10">
+        <p className={cn("font-display font-semibold text-white leading-tight text-center break-words", isLarge ? "text-lg pt-4" : "text-[10px] line-clamp-3")}>
+          {title}
+        </p>
+      </div>
+      
+      {author && (
+        <p className={cn("font-sans font-light text-white/70 relative z-10 truncate text-center", isLarge ? "text-xs pb-2" : "text-[8px]")}>
+          {author}
+        </p>
       )}
     </div>
   );

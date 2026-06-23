@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { randomWaterNudge } from "@/lib/quotes";
 
-const STORAGE_KEY = "lumen:lastWaterNudge";
+const STORAGE_KEY = "zuki:lastWaterNudge";
 const INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 
 function fire() {
