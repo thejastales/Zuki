@@ -26,6 +26,7 @@ type Book = {
   current_page: number;
   status: "reading" | "finished" | "abandoned";
   final_score: number | null;
+  final_summary?: string | null;
   cover_url?: string | null;
 };
 
@@ -105,11 +106,39 @@ async function fetchBookCover(title: string, author: string): Promise<string | n
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error("Not authenticated");
       
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
       let coverUrl = null;
+      let summaryText = null;
+
       try {
         coverUrl = await fetchBookCover(title, author);
       } catch (e) {
         console.warn("Could not fetch cover from OpenLibrary:", e);
+      }
+
+      if (token) {
+        try {
+          const res = await fetch("/api/reading", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              action: "generate_summary",
+              title: title.trim(),
+              author: author.trim() || null,
+            }),
+          });
+          if (res.ok) {
+            const summaryData = await res.json();
+            summaryText = summaryData.summary;
+          }
+        } catch (e) {
+          console.warn("Could not generate summary:", e);
+        }
       }
 
       const insertData = {
@@ -117,6 +146,7 @@ async function fetchBookCover(title: string, author: string): Promise<string | n
         title: title.trim(),
         author: author.trim() || null,
         total_pages: parseInt(pages),
+        final_summary: summaryText,
       };
 
       let result;
@@ -127,19 +157,17 @@ async function fetchBookCover(title: string, author: string): Promise<string | n
             ...insertData,
             cover_url: coverUrl,
           })
-          .select()
-          .single();
+          .select();
         if (error) throw error;
-        result = data;
+        result = Array.isArray(data) ? data[0] : data;
       } catch (err) {
         console.warn("Inserting with cover_url failed, retrying without cover_url:", err);
         const { data, error } = await supabase
           .from("books")
           .insert(insertData)
-          .select()
-          .single();
+          .select();
         if (error) throw error;
-        result = data;
+        result = Array.isArray(data) ? data[0] : data;
       }
       return result as Book;
     },
@@ -150,7 +178,14 @@ async function fetchBookCover(title: string, author: string): Promise<string | n
       setAuthor("");
       setPages("");
       toast.success("Book added to library.");
-      nav({ to: "/reading/$bookId", params: { bookId: data.id } });
+      
+      const bookId = (data as any)?.id || (Array.isArray(data) ? (data[0] as any)?.id : undefined);
+      if (bookId) {
+        nav({ to: "/reading/$bookId", params: { bookId } });
+      } else {
+        console.warn("Inserted book data did not return a valid ID:", data);
+        nav({ to: "/reading" });
+      }
     },
     onError: (err) => {
       toast.error(err.message);
@@ -163,17 +198,29 @@ async function fetchBookCover(title: string, author: string): Promise<string | n
     addBookMutation.mutate({ title, author, pages });
   }
 
-  const reading = books.filter((b) => b.status === "reading");
-  const finished = books.filter((b) => b.status === "finished");
+  const booksArray = Array.isArray(books) ? books : [];
+  const allSessionsArray = Array.isArray(allSessions) ? allSessions : [];
+  const recsArray = Array.isArray(recs) ? recs : [];
+
+  const reading = booksArray.filter((b) => b && b.status === "reading");
+  const finished = booksArray.filter((b) => b && b.status === "finished");
   const loading = booksLoading || recsLoading;
 
   const totalPagesRead = useMemo(() => {
-    return allSessions.reduce((acc, s) => acc + Math.max(0, s.pages_to - s.pages_from + 1), 0);
-  }, [allSessions]);
+    return allSessionsArray.reduce((acc, s) => {
+      const from = Number(s?.pages_from) || 0;
+      const to = Number(s?.pages_to) || 0;
+      return acc + Math.max(0, to - from + 1);
+    }, 0);
+  }, [allSessionsArray]);
 
   const streak = useMemo(() => {
-    if (allSessions.length === 0) return 0;
-    const uniqueDates = Array.from(new Set(allSessions.map(s => s.session_date))).sort((a, b) => b.localeCompare(a));
+    const dates = allSessionsArray
+      .map((s) => s?.session_date)
+      .filter((d): d is string => typeof d === "string" && d.trim().length > 0);
+    
+    if (dates.length === 0) return 0;
+    const uniqueDates = Array.from(new Set(dates)).sort((a, b) => b.localeCompare(a));
     
     let currentStreak = 0;
     const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -196,7 +243,7 @@ async function fetchBookCover(title: string, author: string): Promise<string | n
       }
     }
     return currentStreak;
-  }, [allSessions]);
+  }, [allSessionsArray]);
 
   const booksFinished = finished.length;
 
@@ -273,18 +320,20 @@ async function fetchBookCover(title: string, author: string): Promise<string | n
         </section>
       )}
 
-      {recs.length > 0 && (
+      {recsArray.length > 0 && (
         <section>
           <h2 className="mb-3 flex items-center gap-2 font-display text-xl">
             <Sparkles className="h-4 w-4 text-primary" /> Recommended for you
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">
-            {recs.map((r) => (
-              <div key={r.id} className="aurora-card rounded-2xl p-4">
-                <p className="font-display text-lg">{r.title}</p>
-                {r.author && <p className="text-xs text-muted-foreground">{r.author}</p>}
-                {r.reason && <p className="mt-2 text-sm text-muted-foreground">{r.reason}</p>}
-              </div>
+            {recsArray.map((r) => (
+              r && (
+                <div key={r.id} className="aurora-card rounded-2xl p-4">
+                  <p className="font-display text-lg">{r.title || "Recommended Read"}</p>
+                  {r.author && <p className="text-xs text-muted-foreground">{r.author}</p>}
+                  {r.reason && <p className="mt-2 text-sm text-muted-foreground">{r.reason}</p>}
+                </div>
+              )
             ))}
           </div>
         </section>
@@ -311,6 +360,7 @@ async function fetchBookCover(title: string, author: string): Promise<string | n
 
 
 function BookCard({ book }: { book: Book }) {
+  if (!book || !book.id) return null;
   const pct = book.total_pages > 0 ? Math.round((book.current_page / book.total_pages) * 100) : 0;
   return (
     <Link
@@ -332,6 +382,11 @@ function BookCard({ book }: { book: Book }) {
             )}
           </div>
           {book.author && <p className="text-xs text-muted-foreground truncate">{book.author}</p>}
+          {book.final_summary && (
+            <p className="text-xs text-muted-foreground line-clamp-2 mt-1 italic font-light leading-relaxed">
+              {book.final_summary}
+            </p>
+          )}
         </div>
         <div className="space-y-1.5 mt-2">
           <div className="flex justify-between text-xs text-muted-foreground">
@@ -345,9 +400,10 @@ function BookCard({ book }: { book: Book }) {
   );
 }
 
-export function BookCover({ title, author, coverUrl, size = "small" }: { title: string; author: string | null; coverUrl?: string | null; size?: "small" | "large" }) {
+export function BookCover({ title, author, coverUrl, size = "small" }: { title: string | null | undefined; author: string | null; coverUrl?: string | null; size?: "small" | "large" }) {
   const [imgFailed, setImgFailed] = useState(false);
   const getHash = (str: string) => {
+    if (!str) return 0;
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       hash = str.charCodeAt(i) + ((hash << 5) - hash);
@@ -355,7 +411,8 @@ export function BookCover({ title, author, coverUrl, size = "small" }: { title: 
     return Math.abs(hash);
   };
 
-  const hash = getHash(title);
+  const safeTitle = title || "Untitled Book";
+  const hash = getHash(safeTitle);
   
   const gradients = [
     "from-[oklch(0.20_0.04_250)] to-[oklch(0.35_0.08_290)]", // Lavender Dusk
@@ -372,14 +429,14 @@ export function BookCover({ title, author, coverUrl, size = "small" }: { title: 
   if (coverUrl && !imgFailed) {
     return (
       <div 
-        className={cn(
+         className={cn(
           "relative rounded-xl overflow-hidden bg-zinc-950 flex flex-col justify-between border border-primary/20 shadow-md shrink-0",
           isLarge ? "h-64 w-44" : "h-28 w-20"
         )}
       >
         <img 
           src={coverUrl} 
-          alt={title} 
+          alt={safeTitle} 
           className="w-full h-full object-cover" 
           onError={() => setImgFailed(true)}
         />
@@ -407,7 +464,7 @@ export function BookCover({ title, author, coverUrl, size = "small" }: { title: 
       
       <div className="mt-1 space-y-0.5 relative z-10">
         <p className={cn("font-display font-semibold text-white leading-tight text-center break-words", isLarge ? "text-lg pt-4" : "text-[10px] line-clamp-3")}>
-          {title}
+          {safeTitle}
         </p>
       </div>
       

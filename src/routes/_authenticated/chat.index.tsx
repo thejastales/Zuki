@@ -22,10 +22,16 @@ function ChatIndex() {
     const { data, error } = await supabase
       .from("chat_threads")
       .insert({ user_id: user.user.id, title: "New conversation" })
-      .select()
-      .single();
+      .select();
     if (error) return toast.error(error.message);
-    nav({ to: "/chat/$threadId", params: { threadId: data.id } });
+    const row = Array.isArray(data) ? data[0] : data;
+    const threadId = row?.id;
+    if (threadId) {
+      nav({ to: "/chat/$threadId", params: { threadId } });
+    } else {
+      console.warn("No threadId returned on creation:", data);
+      toast.error("Failed to start conversation. Please try again.");
+    }
   }
   return (
     <motion.div

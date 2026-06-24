@@ -980,6 +980,8 @@ function TodayPage() {
             readingCount={pagesReadToday} 
             worriesCount={worriesParkedToday} 
             streak={streakStats.currentStreak} 
+            activeDreamsCount={goalsList.filter(g => g.category && g.status === "active").length}
+            completedDreamsCount={goalsList.filter(g => g.category && g.status === "completed").length}
           />
 
           {/* Timeline: The Story of My Growth */}
@@ -1435,7 +1437,7 @@ function TodayPage() {
         <DialogContent className="aurora-card border-0 sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-display text-2xl flex items-center">
-              <Sparkles className="mr-2 inline h-5 w-5 text-primary animate-float" />
+              <img src="/icon.svg" className="mr-2 inline h-5 w-5 object-contain" alt="ZUKI Logo" />
               Before we begin
             </DialogTitle>
             <DialogDescription>
@@ -1490,13 +1492,24 @@ function GrowthGarden({
   tasksCount, 
   readingCount, 
   worriesCount, 
-  streak 
+  streak,
+  activeDreamsCount = 0,
+  completedDreamsCount = 0
 }: { 
   tasksCount: number; 
   readingCount: number; 
   worriesCount: number; 
   streak: number; 
+  activeDreamsCount?: number;
+  completedDreamsCount?: number;
 }) {
+  const dreamPositions = [
+    { x: 50, color: "oklch(0.85 0.15 95)" },  // Gold
+    { x: 120, color: "oklch(0.82 0.12 340)" }, // Pink
+    { x: 215, color: "oklch(0.78 0.12 285)" }, // Purple
+    { x: 375, color: "oklch(0.80 0.12 165)" }, // Teal
+    { x: 145, color: "oklch(0.84 0.07 45)" }   // Amber
+  ];
   const sproutScale = tasksCount > 0 ? 1 : 0;
   const stemScale = streak >= 7 ? 1 : 0;
   const flowerScale = readingCount > 0 ? 1 : 0;
@@ -1598,6 +1611,33 @@ function GrowthGarden({
             </g>
           )}
 
+          {/* Future Dreams (Seeds or unique star flowers) */}
+          {dreamPositions.map((pos, idx) => {
+            const isSeed = idx < activeDreamsCount;
+            const isBloom = idx >= activeDreamsCount && idx < activeDreamsCount + completedDreamsCount;
+            if (!isSeed && !isBloom) return null;
+
+            return (
+              <g key={idx} className="animate-sway" style={{ transformOrigin: `${pos.x}px 160px`, animationDelay: `${idx * 0.5}s` }}>
+                {/* Stem */}
+                <path d={`M ${pos.x} 160 Q ${pos.x - 4} 145 ${pos.x + 2} 135`} stroke={pos.color} strokeWidth="1.5" strokeLinecap="round" />
+                {isSeed ? (
+                  /* Glowing seedling seed (active dream) */
+                  <>
+                    <ellipse cx={pos.x + 2} cy={135} rx="1.5" ry="2.5" fill={pos.color} filter="url(#glowFilter)" className="animate-pulse" />
+                    <path d={`M ${pos.x + 2} 135 Q ${pos.x - 3} 133 ${pos.x - 2} 138 Z`} fill={pos.color} opacity="0.6" />
+                  </>
+                ) : (
+                  /* Unique star flower (completed dream) */
+                  <g transform={`translate(${pos.x + 2}, 135)`}>
+                    <path d="M 0 -5 L 1.5 -1.5 L 5 0 L 1.5 1.5 L 0 5 L -1.5 1.5 L -5 0 L -1.5 -1.5 Z" fill={pos.color} filter="url(#glowFilter)" />
+                    <circle cx="0" cy="0" r="1.2" fill="oklch(0.95 0.05 95)" />
+                  </g>
+                )}
+              </g>
+            );
+          })}
+
           {/* Floating Glow Particles */}
           <g className="animate-float" style={{ animationDuration: "5s" }}>
             <circle cx="150" cy="60" r="1" fill="oklch(0.85 0.15 95)" filter="url(#glowFilter)" />
@@ -1620,6 +1660,7 @@ function GrowthGarden({
         <div className="flex items-center gap-1.5"><span className="text-sm">🌸</span> Blooms (Reading Sessions)</div>
         <div className="flex items-center gap-1.5"><span className="text-sm">🌿</span> Ferns (Consistency Flow)</div>
         <div className="flex items-center gap-1.5"><span className="text-sm">🌳</span> Zen Trees (Worries Contained)</div>
+        <div className="flex items-center gap-1.5"><span className="text-sm">✨</span> Seeds / Blooms (Future Dreams)</div>
       </div>
     </div>
   );

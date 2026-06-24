@@ -43,17 +43,21 @@ function AuthedLayout() {
     return !fn || fn === "dev-test-user";
   }, [user]);
 
-  const [isOnboarding, setIsOnboarding] = useState(isUnnamed);
+  const [isOnboarding, setIsOnboarding] = useState(false);
   const [onboardedName, setOnboardedName] = useState("");
+  const [onboardNameChecked, setOnboardNameChecked] = useState(false);
 
   useEffect(() => {
-    if (user?.user_metadata?.full_name || user?.user_metadata?.name) {
-      setDisplayName(user.user_metadata.full_name || user.user_metadata.name || "");
+    if (user) {
+      const fn = user.user_metadata?.full_name || user.user_metadata?.name;
+      setDisplayName(fn || "");
+      setIsOnboarding(!fn || fn === "dev-test-user");
+      setOnboardNameChecked(true);
     }
   }, [user]);
 
   useEffect(() => {
-    if (isOnboarding) return;
+    if (!onboardNameChecked || isOnboarding) return;
 
     const closeTrigger = setTimeout(() => {
       setSplashClosing(true);
@@ -67,16 +71,21 @@ function AuthedLayout() {
       clearTimeout(closeTrigger);
       clearTimeout(removeTrigger);
     };
-  }, [isOnboarding]);
+  }, [onboardNameChecked, isOnboarding]);
 
 
 
   async function signOut() {
     try {
-      localStorage.setItem("zuki:loggedOut", "true");
-    } catch {}
-    await supabase.auth.signOut();
-    nav({ to: "/auth" });
+      try {
+        localStorage.setItem("zuki:loggedOut", "true");
+      } catch {}
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn("Sign out network error:", err);
+    } finally {
+      nav({ to: "/auth" });
+    }
   }
 
   async function handleSaveProfile(e: React.FormEvent) {
@@ -124,6 +133,7 @@ function AuthedLayout() {
     { to: "/today", label: "Today", icon: LayoutGrid },
     { to: "/reading", label: "Reading", icon: BookOpen },
     { to: "/worry", label: "Worry Time", icon: ShieldAlert },
+    { to: "/vision-board", label: "Vision Board", icon: Sparkles },
     { to: "/chat", label: "ZUKI Chat", icon: MessageCircleHeart },
   ] as const;
 
@@ -306,6 +316,15 @@ function AuthedLayout() {
                   {savingName ? "Preparing space..." : "Begin Journey"}
                 </Button>
               </form>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={signOut}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors underline underline-offset-4"
+                >
+                  Sign out / Switch account
+                </button>
+              </div>
             </div>
           ) : (
             /* Kinetic staggered greeting text */

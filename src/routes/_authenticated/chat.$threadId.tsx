@@ -34,6 +34,29 @@ function ChatThread() {
   });
   const token = session?.access_token ?? null;
 
+export function getMessageText(parts: any): string {
+  if (typeof parts === "string") return parts;
+  if (Array.isArray(parts)) {
+    return parts
+      .map((p) => {
+        if (p && typeof p === "object") {
+          if (p.type === "text" && typeof p.text === "string") {
+            return p.text;
+          }
+          if (typeof p.text === "string") {
+            return p.text;
+          }
+        }
+        return typeof p === "string" ? p : "";
+      })
+      .join("");
+  }
+  if (parts && typeof parts === "object") {
+    if (parts.text && typeof parts.text === "string") return parts.text;
+  }
+  return "";
+}
+
   // Query chat messages
   const { data: initial = null, isLoading } = useQuery({
     queryKey: ["chat_messages", threadId],
@@ -47,7 +70,7 @@ function ChatThread() {
       return (data ?? []).map((m) => ({
         id: m.client_message_id ?? m.id,
         role: m.role as UIMessage["role"],
-        parts: m.parts as UIMessage["parts"],
+        parts: Array.isArray(m.parts) ? (m.parts as UIMessage["parts"]) : [{ type: "text", text: getMessageText(m.parts) }],
       }));
     },
   });
@@ -345,9 +368,7 @@ function ChatWindow({
             </div>
           )}
           {messages.map((m) => {
-            const rawText = m.parts
-              .map((p) => (p.type === "text" ? p.text : ""))
-              .join("");
+            const rawText = getMessageText(m.parts);
             // Strip any XML save_memory or save_goal tags from output
             const text = rawText.replace(/<save_(memory|goal)[\s\S]*?<\/save_(memory|goal)>/gi, "").trim();
             if (!text) return null;

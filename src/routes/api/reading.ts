@@ -6,7 +6,8 @@ import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 type Action =
   | { action: "score"; bookId: string; sessionId: string }
   | { action: "finish"; bookId: string }
-  | { action: "generate_insights"; bookId: string };
+  | { action: "generate_insights"; bookId: string }
+  | { action: "generate_summary"; title: string; author?: string | null };
 
 function getSupabase(token: string) {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
@@ -246,6 +247,10 @@ Return STRICT JSON only, no prose, no markdown:
               quotes
             });
           }
+        if (body.action === "generate_summary") {
+          const prompt = `Provide a brief, inspiring 1-sentence summary of the book "${body.title}"${body.author ? ` by ${body.author}` : ""}. Focus on its core philosophy or premise. Keep it under 150 characters. Do not output any quotes or markdown, just return the direct sentence.`;
+          const { text } = await generateText({ model, prompt });
+          return Response.json({ summary: text.trim() });
         }
 
         return new Response("Bad action", { status: 400 });

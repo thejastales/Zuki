@@ -49,13 +49,32 @@ function AuthPage() {
         localStorage.removeItem("zuki:loggedOut");
       } catch {}
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: window.location.origin },
         });
         if (error) throw error;
-        toast.success("Check your inbox to confirm your email.");
+        if (data.session) {
+          toast.success("Account created and signed in!");
+          nav({ to: "/today" });
+        } else {
+          // Attempt automatic sign-in if the database trigger auto-confirmed the email
+          try {
+            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            });
+            if (signInError) {
+              toast.success("Account created! Check your inbox to confirm your email.");
+            } else {
+              toast.success("Account created and signed in!");
+              nav({ to: "/today" });
+            }
+          } catch {
+            toast.success("Account created! Check your inbox to confirm your email.");
+          }
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -110,11 +129,11 @@ function AuthPage() {
       try {
         localStorage.removeItem("zuki:loggedOut");
       } catch {}
-      const isLocal = typeof window !== "undefined" && 
-        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+      const isLovable = typeof window !== "undefined" && 
+        (window.location.hostname.endsWith("lovable.app") || window.location.hostname.endsWith("lovable.dev"));
 
-      if (isLocal) {
-        // Direct Supabase OAuth for local development
+      if (!isLovable) {
+        // Direct Supabase OAuth for local development and self-deployed environments (Vercel)
         const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",
           options: {
@@ -123,7 +142,7 @@ function AuthPage() {
         });
         if (error) throw error;
       } else {
-        // Keep Lovable Cloud Auth for production compatibility
+        // Keep Lovable Cloud Auth for Lovable preview/production hosting compatibility
         const res = await lovable.auth.signInWithOAuth("google", {
           redirect_uri: window.location.origin,
         });

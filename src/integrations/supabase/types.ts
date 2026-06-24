@@ -14,6 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
+      future_self: {
+        Row: {
+          id: string
+          user_id: string
+          become_text: string | null
+          feel_text: string | null
+          life_text: string | null
+          values_text: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          become_text?: string | null
+          feel_text?: string | null
+          life_text?: string | null
+          values_text?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          become_text?: string | null
+          feel_text?: string | null
+          life_text?: string | null
+          values_text?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      goals: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          status: string
+          notes: string | null
+          category: string | null
+          description: string | null
+          image_url: string | null
+          quote: string | null
+          created_at: string
+          updated_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          status?: string
+          notes?: string | null
+          category?: string | null
+          description?: string | null
+          image_url?: string | null
+          quote?: string | null
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          status?: string
+          notes?: string | null
+          category?: string | null
+          description?: string | null
+          image_url?: string | null
+          quote?: string | null
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
+        }
+        Relationships: []
+      }
       book_recommendations: {
         Row: {
           author: string | null

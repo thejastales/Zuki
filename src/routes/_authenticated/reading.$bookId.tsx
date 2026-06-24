@@ -119,10 +119,11 @@ function BookDetail() {
           book_id: bookId,
           title: `Chat: ${book?.title ?? "book"}`,
         })
-        .select("id")
-        .single();
+        .select("id");
       if (error) throw error;
-      return created.id;
+      const row = Array.isArray(created) ? created[0] : created;
+      if (!row) throw new Error("Failed to create chat thread");
+      return row.id;
     },
   });
 
@@ -165,7 +166,7 @@ function BookDetail() {
     mutationFn: async ({ f, t, note }: { f: number; t: number; note: string }) => {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error("Not authenticated");
-      const { data: row, error } = await supabase
+      const { data, error } = await supabase
         .from("reading_sessions")
         .insert({
           user_id: user.user.id,
@@ -174,9 +175,9 @@ function BookDetail() {
           pages_to: t,
           understanding_note: note.trim(),
         })
-        .select()
-        .single();
+        .select();
       if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
       return row as Session;
     },
     onSuccess: async (row) => {
@@ -188,12 +189,13 @@ function BookDetail() {
       toast.success("Reading session logged.");
 
       // AI grading (handled in background non-blocking-ish)
-      if (token) {
+      const sessionId = (row as any)?.id || (Array.isArray(row) ? (row[0] as any)?.id : undefined);
+      if (token && sessionId) {
         try {
           const res = await fetch("/api/reading", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ action: "score", bookId, sessionId: row.id }),
+            body: JSON.stringify({ action: "score", bookId, sessionId }),
           });
           if (res.ok) {
             queryClient.invalidateQueries({ queryKey: ["reading_sessions", bookId] });
@@ -250,12 +252,30 @@ function BookDetail() {
   if (loading) return <p className="text-sm text-muted-foreground">Loading book details…</p>;
   if (!book || !token) return <p className="text-sm text-muted-foreground">Book not found.</p>;
 
-  const pct = book.total_pages > 0 ? Math.round((book.current_page / book.total_pages) * 100) : 0;
-  const scoredSessions = sessions.filter((s) => s.ai_score !== null);
-  const overall = scoredSessions.length > 0
-    ? Math.round(scoredSessions.reduce((a, s) => a + (s.ai_score ?? 0) * (s.pages_to - s.pages_from + 1), 0) /
-        Math.max(1, scoredSessions.reduce((a, s) => a + (s.pages_to - s.pages_from + 1), 0)))
-    : null;
+  const total = Number(book?.total_pages) || 0;
+  const current = Number(book?.current_page) || 0;
+  const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+
+  const sessionsArray = Array.isArray(sessions) ? sessions : [];
+  const overall = useMemo(() => {
+    const scoredSessions = sessionsArray.filter((s) => s && s.ai_score !== null);
+    if (scoredSessions.length === 0) return null;
+    
+    let totalScoreWeighted = 0;
+    let totalPages = 0;
+    
+    for (const s of scoredSessions) {
+      const from = Number(s.pages_from) || 0;
+      const to = Number(s.pages_to) || 0;
+      const count = Math.max(0, to - from + 1);
+      const score = Number(s.ai_score) || 0;
+      
+      totalScoreWeighted += score * count;
+      totalPages += count;
+    }
+    
+    return totalPages > 0 ? Math.round(totalScoreWeighted / totalPages) : null;
+  }, [sessionsArray]);
 
   return (
     <motion.div 
@@ -522,9 +542,10 @@ function BookDetail() {
   );
 }
 
-function BookCover({ title, author, coverUrl, size = "small" }: { title: string; author: string | null; coverUrl?: string | null; size?: "small" | "large" }) {
+function BookCover({ title, author, coverUrl, size = "small" }: { title: string | null | undefined; author: string | null; coverUrl?: string | null; size?: "small" | "large" }) {
   const [imgFailed, setImgFailed] = useState(false);
   const getHash = (str: string) => {
+    if (!str) return 0;
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       hash = str.charCodeAt(i) + ((hash << 5) - hash);
@@ -532,7 +553,8 @@ function BookCover({ title, author, coverUrl, size = "small" }: { title: string;
     return Math.abs(hash);
   };
 
-  const hash = getHash(title);
+  const safeTitle = title || "Untitled Book";
+  const hash = getHash(safeTitle);
   
   const gradients = [
     "from-[oklch(0.20_0.04_250)] to-[oklch(0.35_0.08_290)]", // Lavender Dusk
@@ -556,7 +578,7 @@ function BookCover({ title, author, coverUrl, size = "small" }: { title: string;
       >
         <img 
           src={coverUrl} 
-          alt={title} 
+          alt={safeTitle} 
           className="w-full h-full object-cover" 
           onError={() => setImgFailed(true)}
         />
@@ -597,6 +619,29 @@ function BookCover({ title, author, coverUrl, size = "small" }: { title: string;
   );
 }
 
+export function getMessageText(parts: any): string {
+  if (typeof parts === "string") return parts;
+  if (Array.isArray(parts)) {
+    return parts
+      .map((p) => {
+        if (p && typeof p === "object") {
+          if (p.type === "text" && typeof p.text === "string") {
+            return p.text;
+          }
+          if (typeof p.text === "string") {
+            return p.text;
+          }
+        }
+        return typeof p === "string" ? p : "";
+      })
+      .join("");
+  }
+  if (parts && typeof parts === "object") {
+    if (parts.text && typeof parts.text === "string") return parts.text;
+  }
+  return "";
+}
+
 function BookChat({ threadId, token, bookTitle }: { threadId: string; token: string; bookTitle: string }) {
   const { data: initial = null, isLoading } = useQuery({
     queryKey: ["book_chat_messages", threadId],
@@ -610,7 +655,7 @@ function BookChat({ threadId, token, bookTitle }: { threadId: string; token: str
       return (data ?? []).map((m) => ({
         id: m.client_message_id ?? m.id,
         role: m.role as UIMessage["role"],
-        parts: m.parts as UIMessage["parts"],
+        parts: Array.isArray(m.parts) ? (m.parts as UIMessage["parts"]) : [{ type: "text", text: getMessageText(m.parts) }],
       }));
     },
   });
@@ -672,7 +717,7 @@ function BookChatWindow({ threadId, token, bookTitle, initial }: { threadId: str
             </p>
           )}
           {messages.map((m) => {
-            const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
+            const text = getMessageText(m.parts);
             const isUser = m.role === "user";
             return (
               <div key={m.id} className={cn("flex gap-2", isUser ? "justify-end" : "justify-start")}>

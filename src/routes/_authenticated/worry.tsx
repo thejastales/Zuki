@@ -685,6 +685,29 @@ function WorryDashboard() {
   );
 }
 
+export function getMessageText(parts: any): string {
+  if (typeof parts === "string") return parts;
+  if (Array.isArray(parts)) {
+    return parts
+      .map((p) => {
+        if (p && typeof p === "object") {
+          if (p.type === "text" && typeof p.text === "string") {
+            return p.text;
+          }
+          if (typeof p.text === "string") {
+            return p.text;
+          }
+        }
+        return typeof p === "string" ? p : "";
+      })
+      .join("");
+  }
+  if (parts && typeof parts === "object") {
+    if (parts.text && typeof parts.text === "string") return parts.text;
+  }
+  return "";
+}
+
 function ZukiChat({ threadId, token }: { threadId: string; token: string }) {
   const { data: initial = null, isLoading } = useQuery({
     queryKey: ["zuki_chat_messages", threadId],
@@ -698,7 +721,7 @@ function ZukiChat({ threadId, token }: { threadId: string; token: string }) {
       return (data ?? []).map((m) => ({
         id: m.client_message_id ?? m.id,
         role: m.role as UIMessage["role"],
-        parts: m.parts as UIMessage["parts"],
+        parts: Array.isArray(m.parts) ? (m.parts as UIMessage["parts"]) : [{ type: "text", text: getMessageText(m.parts) }],
       }));
     },
   });
@@ -751,7 +774,7 @@ function ZukiChatWindow({ threadId, token, initial }: { threadId: string; token:
             </p>
           )}
           {messages.map((m) => {
-            const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
+            const text = getMessageText(m.parts);
             const isUser = m.role === "user";
             return (
               <div key={m.id} className={cn("flex gap-2", isUser ? "justify-end" : "justify-start")}>

@@ -48,14 +48,19 @@ function ChatLayout() {
       const { data, error } = await supabase
         .from("chat_threads")
         .insert({ user_id: user.user.id, title: "New conversation" })
-        .select()
-        .single();
+        .select();
       if (error) throw error;
-      return data as Thread;
+      const row = Array.isArray(data) ? data[0] : data;
+      return row as Thread;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["chat_threads"] });
-      nav({ to: "/chat/$threadId", params: { threadId: data.id } });
+      const threadId = (data as any)?.id || (Array.isArray(data) ? (data[0] as any)?.id : undefined);
+      if (threadId) {
+        nav({ to: "/chat/$threadId", params: { threadId } });
+      } else {
+        nav({ to: "/chat" });
+      }
     },
     onError: (err) => {
       toast.error(err.message);
