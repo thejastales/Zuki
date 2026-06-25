@@ -16,6 +16,7 @@ import { Route as ApiWorryRouteImport } from './routes/api/worry'
 import { Route as ApiReadingRouteImport } from './routes/api/reading'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedWorryRouteImport } from './routes/_authenticated/worry'
+import { Route as AuthenticatedVisionBoardRouteImport } from './routes/_authenticated/vision-board'
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedReadingIndexRouteImport } from './routes/_authenticated/reading.index'
@@ -57,6 +58,12 @@ const AuthenticatedWorryRoute = AuthenticatedWorryRouteImport.update({
   path: '/worry',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedVisionBoardRoute =
+  AuthenticatedVisionBoardRouteImport.update({
+    id: '/vision-board',
+    path: '/vision-board',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTodayRoute = AuthenticatedTodayRouteImport.update({
   id: '/today',
   path: '/today',
@@ -96,6 +103,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/chat': typeof AuthenticatedChatRouteWithChildren
   '/today': typeof AuthenticatedTodayRoute
+  '/vision-board': typeof AuthenticatedVisionBoardRoute
   '/worry': typeof AuthenticatedWorryRoute
   '/api/chat': typeof ApiChatRoute
   '/api/reading': typeof ApiReadingRoute
@@ -109,6 +117,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/today': typeof AuthenticatedTodayRoute
+  '/vision-board': typeof AuthenticatedVisionBoardRoute
   '/worry': typeof AuthenticatedWorryRoute
   '/api/chat': typeof ApiChatRoute
   '/api/reading': typeof ApiReadingRoute
@@ -125,6 +134,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/chat': typeof AuthenticatedChatRouteWithChildren
   '/_authenticated/today': typeof AuthenticatedTodayRoute
+  '/_authenticated/vision-board': typeof AuthenticatedVisionBoardRoute
   '/_authenticated/worry': typeof AuthenticatedWorryRoute
   '/api/chat': typeof ApiChatRoute
   '/api/reading': typeof ApiReadingRoute
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/chat'
     | '/today'
+    | '/vision-board'
     | '/worry'
     | '/api/chat'
     | '/api/reading'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/today'
+    | '/vision-board'
     | '/worry'
     | '/api/chat'
     | '/api/reading'
@@ -169,6 +181,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/chat'
     | '/_authenticated/today'
+    | '/_authenticated/vision-board'
     | '/_authenticated/worry'
     | '/api/chat'
     | '/api/reading'
@@ -239,6 +252,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWorryRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/vision-board': {
+      id: '/_authenticated/vision-board'
+      path: '/vision-board'
+      fullPath: '/vision-board'
+      preLoaderRoute: typeof AuthenticatedVisionBoardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/today': {
       id: '/_authenticated/today'
       path: '/today'
@@ -300,6 +320,7 @@ const AuthenticatedChatRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedChatRoute: typeof AuthenticatedChatRouteWithChildren
   AuthenticatedTodayRoute: typeof AuthenticatedTodayRoute
+  AuthenticatedVisionBoardRoute: typeof AuthenticatedVisionBoardRoute
   AuthenticatedWorryRoute: typeof AuthenticatedWorryRoute
   AuthenticatedReadingBookIdRoute: typeof AuthenticatedReadingBookIdRoute
   AuthenticatedReadingIndexRoute: typeof AuthenticatedReadingIndexRoute
@@ -308,6 +329,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChatRoute: AuthenticatedChatRouteWithChildren,
   AuthenticatedTodayRoute: AuthenticatedTodayRoute,
+  AuthenticatedVisionBoardRoute: AuthenticatedVisionBoardRoute,
   AuthenticatedWorryRoute: AuthenticatedWorryRoute,
   AuthenticatedReadingBookIdRoute: AuthenticatedReadingBookIdRoute,
   AuthenticatedReadingIndexRoute: AuthenticatedReadingIndexRoute,

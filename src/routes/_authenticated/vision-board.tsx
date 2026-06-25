@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Sparkles, Plus, Trash2, Pencil, CheckCircle2, Circle } from "lucide-react";
+import { Plus, Trash2, Pencil, CheckCircle2, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_authenticated/vision-board")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Future Vision Board — ZUKI" },
+      { title: "Future Vision Board - ZUKI" },
       {
         name: "description",
         content:
@@ -28,11 +28,11 @@ export const Route = createFileRoute("/_authenticated/vision-board")({
 });
 
 const CATEGORIES = [
-  { value: "Career", label: "Career", emoji: "💼" },
-  { value: "Travel", label: "Travel", emoji: "✈️" },
-  { value: "Lifestyle & Wellness", label: "Lifestyle & Wellness", emoji: "💪" },
-  { value: "Skills & Learning", label: "Skills & Learning", emoji: "📚" },
-  { value: "Relationships", label: "Relationships", emoji: "❤️" },
+  { value: "Career", label: "Career" },
+  { value: "Travel", label: "Travel" },
+  { value: "Lifestyle & Wellness", label: "Lifestyle & Wellness" },
+  { value: "Skills & Learning", label: "Skills & Learning" },
+  { value: "Relationships", label: "Relationships" },
 ] as const;
 
 type DreamCategory = typeof CATEGORIES[number]["value"];
@@ -62,6 +62,24 @@ type FutureSelf = {
   created_at: string;
   updated_at: string;
 };
+
+const DREAM_COLUMNS =
+  "id,user_id,title,status,notes,category,description,image_url,quote,created_at,updated_at,completed_at";
+
+function cleanOptionalUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      throw new Error("Image URL must start with http:// or https://");
+    }
+    return url.toString();
+  } catch {
+    throw new Error("Please enter a valid image URL, or leave it empty.");
+  }
+}
 
 function VisionBoardPage() {
   const queryClient = useQueryClient();
@@ -99,26 +117,28 @@ function VisionBoardPage() {
 
   // Fetch dreams (goals with category)
   const { data: dreams = [], isLoading: dreamsLoading } = useQuery({
-    queryKey: ["dreams"],
+    queryKey: ["dreams", userId],
     enabled: !!userId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("goals")
-        .select("*")
+        .select(DREAM_COLUMNS)
+        .not("category", "is", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []).filter((g: any) => g.category !== null) as Dream[];
+      return (data ?? []) as Dream[];
     },
   });
 
   // Fetch Future Self reflections
   const { data: futureSelf = null } = useQuery({
-    queryKey: ["future_self"],
+    queryKey: ["future_self", userId],
     enabled: !!userId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("future_self")
         .select("*")
+        .eq("user_id", userId)
         .maybeSingle();
       if (error) {
         console.warn("Error fetching future_self:", error);
@@ -150,19 +170,19 @@ function VisionBoardPage() {
           category: dreamCategory,
           description: dreamDescription.trim() || null,
           notes: dreamNotes.trim() || null,
-          image_url: dreamImageUrl.trim() || null,
+          image_url: cleanOptionalUrl(dreamImageUrl),
           quote: dreamQuote.trim() || null,
           status: "active",
         })
-        .select()
+        .select(DREAM_COLUMNS)
         .single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dreams"] });
+      queryClient.invalidateQueries({ queryKey: ["dreams", userId] });
       queryClient.invalidateQueries({ queryKey: ["goals"] }); // Invalidate general goals as well
-      toast.success("Added to your vision board. A new seed has been planted!");
+      toast.success("Added to your vision board.");
       resetDreamForm();
       setAddDreamOpen(false);
     },
@@ -180,14 +200,14 @@ function VisionBoardPage() {
           category: dreamCategory,
           description: dreamDescription.trim() || null,
           notes: dreamNotes.trim() || null,
-          image_url: dreamImageUrl.trim() || null,
+          image_url: cleanOptionalUrl(dreamImageUrl),
           quote: dreamQuote.trim() || null,
         })
         .eq("id", dream.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dreams"] });
+      queryClient.invalidateQueries({ queryKey: ["dreams", userId] });
       queryClient.invalidateQueries({ queryKey: ["goals"] });
       toast.success("Dream card updated");
       resetDreamForm();
@@ -204,7 +224,7 @@ function VisionBoardPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dreams"] });
+      queryClient.invalidateQueries({ queryKey: ["dreams", userId] });
       queryClient.invalidateQueries({ queryKey: ["goals"] });
       toast.success("Dream card removed");
     },
@@ -224,12 +244,12 @@ function VisionBoardPage() {
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["dreams"] });
+      queryClient.invalidateQueries({ queryKey: ["dreams", userId] });
       queryClient.invalidateQueries({ queryKey: ["goals"] });
       if (variables.isCompleted) {
-        toast.success("Dream realized! Watch it bloom in your Growth Garden!");
+        toast.success("Dream marked as realized.");
       } else {
-        toast.success("Dream set back to active");
+        toast.success("Dream returned to your active board.");
       }
     },
     onError: (err) => {
@@ -251,7 +271,7 @@ function VisionBoardPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["future_self"] });
+      queryClient.invalidateQueries({ queryKey: ["future_self", userId] });
       toast.success("Future Self reflections saved");
       setIsEditingFutureSelf(false);
     },
@@ -279,10 +299,14 @@ function VisionBoardPage() {
     setDreamQuote(dream.quote || "");
   };
 
-  const filteredDreams = dreams.filter((d) => {
-    if (selectedFilter === "all") return true;
-    return d.category === selectedFilter;
-  });
+  const filteredDreams = useMemo(
+    () =>
+      dreams.filter((d) => {
+        if (selectedFilter === "all") return true;
+        return d.category === selectedFilter;
+      }),
+    [dreams, selectedFilter],
+  );
 
   const categoryOptions = CATEGORIES;
 
@@ -303,7 +327,6 @@ function VisionBoardPage() {
       {/* Header Panel */}
       <div className="text-center space-y-3 py-6">
         <h1 className="font-display text-4xl sm:text-5xl tracking-tight text-foreground font-semibold flex items-center justify-center gap-3">
-          <Sparkles className="h-7 w-7 text-primary animate-pulse" />
           Future Vision Board
         </h1>
         <p className="text-base text-muted-foreground max-w-md mx-auto italic font-medium leading-relaxed">
@@ -315,9 +338,7 @@ function VisionBoardPage() {
       <Card className="aurora-card border border-primary/10 p-8 rounded-3xl relative overflow-hidden shadow-soft">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
         <div className="flex justify-between items-center mb-6">
-          <h2 className="font-display text-2xl font-semibold tracking-tight">
-            🌅 My Future Self
-          </h2>
+          <h2 className="font-display text-2xl font-semibold tracking-tight">My Future Self</h2>
           <Button
             variant={isEditingFutureSelf ? "outline" : "default"}
             size="sm"
@@ -468,7 +489,6 @@ function VisionBoardPage() {
                 onClick={() => setSelectedFilter(cat.value)}
                 className="rounded-full text-xs py-1 px-4 flex items-center gap-1.5"
               >
-                <span>{cat.emoji}</span>
                 <span>{cat.label}</span>
               </Button>
             ))}
@@ -496,7 +516,7 @@ function VisionBoardPage() {
         ) : filteredDreams.length === 0 ? (
           <div className="text-center py-16 bg-background/20 rounded-3xl border border-dashed border-primary/10">
             <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-              Your future board is empty. Add dreams and watch seeds appear in your Growth Garden.
+              Your future board is empty. Add a dream when you feel ready to give your future a little more shape.
             </p>
           </div>
         ) : (
@@ -508,7 +528,7 @@ function VisionBoardPage() {
                   key={dream.id}
                   className={cn(
                     "relative overflow-hidden rounded-3xl border border-primary/10 bg-background/40 backdrop-blur-xl shadow-soft",
-                    "hover:-translate-y-1 hover:shadow-lg transition-all duration-300 group"
+                    "hover:shadow-lg transition-shadow duration-200 group"
                   )}
                 >
                   {/* Image Cover or Pastel Gradient */}
@@ -517,7 +537,7 @@ function VisionBoardPage() {
                       <img
                         src={dream.image_url}
                         alt={dream.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover"
                         onError={(e) => {
                           // Handle image loading error nicely
                           (e.target as HTMLElement).style.display = "none";
@@ -544,7 +564,6 @@ function VisionBoardPage() {
                     {/* Category overlay */}
                     {categoryObj && (
                       <div className="absolute top-3 left-3 bg-background/80 backdrop-blur-md text-foreground text-[10px] font-bold tracking-wider uppercase py-1 px-2.5 rounded-full flex items-center gap-1.5 shadow-sm">
-                        <span>{categoryObj.emoji}</span>
                         <span>{categoryObj.label}</span>
                       </div>
                     )}
@@ -636,9 +655,9 @@ function VisionBoardPage() {
       <Dialog open={addDreamOpen} onOpenChange={setAddDreamOpen}>
         <DialogContent className="sm:max-w-md aurora-card border-0 z-50">
           <DialogHeader>
-            <DialogTitle className="font-display text-2xl">Plant a Dream</DialogTitle>
+            <DialogTitle className="font-display text-2xl">Add a Dream</DialogTitle>
             <DialogDescription>
-              Create a visual card representing your aspiration. It will appear as a seed in your garden.
+              Create a calm visual card for an aspiration you want to keep close.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
@@ -661,7 +680,7 @@ function VisionBoardPage() {
                 <SelectContent className="z-50">
                   {CATEGORIES.map((cat) => (
                     <SelectItem key={cat.value} value={cat.value}>
-                      {cat.emoji} {cat.label}
+                      {cat.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -713,7 +732,7 @@ function VisionBoardPage() {
               disabled={addDreamMutation.isPending || !dreamTitle.trim() || !dreamCategory}
               className="w-full"
             >
-              {addDreamMutation.isPending ? "Planting..." : "Plant Dream Seed"}
+              {addDreamMutation.isPending ? "Saving..." : "Save Dream"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -748,7 +767,7 @@ function VisionBoardPage() {
                 <SelectContent className="z-50">
                   {CATEGORIES.map((cat) => (
                     <SelectItem key={cat.value} value={cat.value}>
-                      {cat.emoji} {cat.label}
+                      {cat.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -247,6 +247,8 @@ Return STRICT JSON only, no prose, no markdown:
               quotes
             });
           }
+        }
+
         if (body.action === "generate_summary") {
           const prompt = `Provide a brief, inspiring 1-sentence summary of the book "${body.title}"${body.author ? ` by ${body.author}` : ""}. Focus on its core philosophy or premise. Keep it under 150 characters. Do not output any quotes or markdown, just return the direct sentence.`;
           const { text } = await generateText({ model, prompt });

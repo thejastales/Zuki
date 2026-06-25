@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "motion/react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -211,6 +210,13 @@ function TodayPage() {
   const todayWorriesList = todayWorries ?? [];
   const heatmapDataObj = heatmapData ?? {};
   const goalsList = goals ?? [];
+  const visionDreamCounts = useMemo(
+    () => ({
+      active: goalsList.filter((g) => g.category && g.status === "active").length,
+      completed: goalsList.filter((g) => g.category && g.status === "completed").length,
+    }),
+    [goalsList],
+  );
 
   // Downstream calculations using safe fallbacks
   const hoursReclaimed = useMemo(() => {
@@ -663,12 +669,7 @@ function TodayPage() {
   const todayQuote = moodCheckin ? { text: moodCheckin.quote ?? "", author: moodCheckin.quote_author ?? "" } : null;
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 15 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      transition={{ duration: 0.4, ease: "easeOut" }}
-      className="space-y-6 relative min-h-screen pb-10"
-    >
+    <div className="space-y-6 relative min-h-screen pb-10 animate-in fade-in-0 duration-500">
       {/* hero / quote */}
       <section className="aurora-card relative overflow-hidden rounded-3xl p-6 sm:p-8 interactive-card shadow-soft">
         <div className="absolute right-12 top-0 h-32 w-32 rounded-full bg-primary/10 blur-3xl animate-pulse pointer-events-none" />
@@ -908,9 +909,8 @@ function TodayPage() {
                     {items.map((t, idx) => (
                       <div
                         key={t.id}
-                        style={{ animationDelay: `${idx * 50}ms` }}
                         className={cn(
-                          "group rounded-xl bg-background/30 p-3 ring-1 ring-border/40 transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-background/60 hover:ring-primary/40 shadow-sm hover:shadow-soft animate-fade-in-up opacity-0",
+                          "group rounded-xl bg-background/30 p-3 ring-1 ring-border/40 transition-colors duration-150 hover:bg-background/60 hover:ring-primary/40 shadow-sm",
                           t.status === "completed" && "opacity-60 hover:opacity-80",
                         )}
                       >
@@ -980,8 +980,8 @@ function TodayPage() {
             readingCount={pagesReadToday} 
             worriesCount={worriesParkedToday} 
             streak={streakStats.currentStreak} 
-            activeDreamsCount={goalsList.filter(g => g.category && g.status === "active").length}
-            completedDreamsCount={goalsList.filter(g => g.category && g.status === "completed").length}
+            activeDreamsCount={visionDreamCounts.active}
+            completedDreamsCount={visionDreamCounts.completed}
           />
 
           {/* Timeline: The Story of My Growth */}
@@ -1483,7 +1483,7 @@ function TodayPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </motion.div>
+    </div>
   );
 }
 

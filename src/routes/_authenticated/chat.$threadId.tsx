@@ -6,33 +6,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sparkles, ArrowUp, Square } from "lucide-react";
+import { ArrowUp, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { randomOpeningThought } from "@/lib/quotes";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { motion } from "motion/react";
-
-
-export const Route = createFileRoute("/_authenticated/chat/$threadId")({
-  ssr: false,
-  component: ChatThread,
-});
-
-function ChatThread() {
-  const { threadId } = useParams({ from: "/_authenticated/chat/$threadId" });
-  const opening = useMemo(() => randomOpeningThought(), [threadId]);
-
-  // Query session token
-  const { data: session } = useQuery({
-    queryKey: ["auth_session"],
-    queryFn: async () => {
-      const { data } = await supabase.auth.getSession();
-      return data.session;
-    },
-  });
-  const token = session?.access_token ?? null;
 
 export function getMessageText(parts: any): string {
   if (typeof parts === "string") return parts;
@@ -56,6 +35,25 @@ export function getMessageText(parts: any): string {
   }
   return "";
 }
+
+export const Route = createFileRoute("/_authenticated/chat/$threadId")({
+  ssr: false,
+  component: ChatThread,
+});
+
+function ChatThread() {
+  const { threadId } = useParams({ from: "/_authenticated/chat/$threadId" });
+  const opening = useMemo(() => randomOpeningThought(), [threadId]);
+
+  // Query session token
+  const { data: session } = useQuery({
+    queryKey: ["auth_session"],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      return data.session;
+    },
+  });
+  const token = session?.access_token ?? null;
 
   // Query chat messages
   const { data: initial = null, isLoading } = useQuery({
@@ -241,10 +239,8 @@ function ChatWindow({
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-border/40 p-4 gap-3 bg-background/20 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[oklch(0.83_0.08_290)] to-[oklch(0.65_0.12_340)] shadow-lg glow animate-float">
-            {/* Inner pulse */}
-            <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[oklch(0.83_0.08_290)] to-[oklch(0.65_0.12_340)] opacity-70 animate-ping" style={{ animationDuration: "3s" }} />
-            <Sparkles className="relative z-10 h-5 w-5 text-white animate-pulse" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20 shadow-soft">
+            <img src="/icon.svg" className="h-6 w-6 object-contain" alt="ZUKI Logo" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -334,9 +330,8 @@ function ChatWindow({
             <div className="space-y-4">
               <div className="rounded-2xl bg-background/30 p-5 ring-1 ring-primary/20 animate-in fade-in-0 duration-300">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="relative h-6 w-6 rounded-full bg-gradient-to-tr from-[oklch(0.83_0.08_290)] to-[oklch(0.65_0.12_340)] shadow-sm">
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[oklch(0.83_0.08_290)] to-[oklch(0.65_0.12_340)] opacity-40 animate-ping" style={{ animationDuration: "3s" }} />
-                    <Sparkles className="relative z-10 h-3 w-3 text-white m-1.5" />
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20 shadow-sm">
+                    <img src="/icon.svg" className="h-4 w-4 object-contain" alt="ZUKI Logo" />
                   </div>
                   <span className="text-xs uppercase tracking-widest text-primary/80 font-semibold">Zuki Chat</span>
                 </div>
@@ -374,17 +369,13 @@ function ChatWindow({
             if (!text) return null;
             const isUser = m.role === "user";
             return (
-              <motion.div
+              <div
                 key={m.id}
-                initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}
+                className={cn("flex gap-3 animate-in fade-in-0 duration-200", isUser ? "justify-end" : "justify-start")}
               >
                 {!isUser && (
-                  <div className="relative mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[oklch(0.83_0.08_290)] to-[oklch(0.65_0.12_340)] shadow-md">
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[oklch(0.83_0.08_290)] to-[oklch(0.65_0.12_340)] opacity-50 animate-ping" style={{ animationDuration: "3s" }} />
-                    <Sparkles className="relative z-10 h-3.5 w-3.5 text-white animate-pulse" />
+                  <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20 shadow-sm">
+                    <img src="/icon.svg" className="h-4 w-4 object-contain" alt="ZUKI Logo" />
                   </div>
                 )}
                 <div
@@ -397,26 +388,20 @@ function ChatWindow({
                 >
                   {text}
                 </div>
-              </motion.div>
+              </div>
             );
           })}
           {status === "submitted" && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 350, damping: 25 }}
-              className="flex gap-3 justify-start"
-            >
-              <div className="relative mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[oklch(0.83_0.08_290)] to-[oklch(0.65_0.12_340)] shadow-md">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[oklch(0.83_0.08_290)] to-[oklch(0.65_0.12_340)] opacity-50 animate-ping" style={{ animationDuration: "3s" }} />
-                <Sparkles className="relative z-10 h-3.5 w-3.5 text-white animate-pulse" />
+            <div className="flex gap-3 justify-start animate-in fade-in-0 duration-200">
+              <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20 shadow-sm">
+                <img src="/icon.svg" className="h-4 w-4 object-contain" alt="ZUKI Logo" />
               </div>
               <div className="flex items-center gap-1 whitespace-pre-wrap rounded-2xl px-4 py-3 bg-background/40 ring-1 ring-border/20">
                 <span className="h-2 w-2 rounded-full bg-primary/80 animate-dot-1" />
                 <span className="h-2 w-2 rounded-full bg-primary/80 animate-dot-2" />
                 <span className="h-2 w-2 rounded-full bg-primary/80 animate-dot-3" />
               </div>
-            </motion.div>
+            </div>
           )}
         </div>
       </ScrollArea>

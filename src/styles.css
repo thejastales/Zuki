@@ -190,9 +190,7 @@
   }
   body {
     background-image: var(--gradient-aurora);
-    background-attachment: fixed;
     background-size: 240% 240%, 240% 240%, 240% 240%;
-    animation: aurora-drift 24s ease-in-out infinite alternate;
     min-height: 100vh;
   }
   h1, h2, h3, .font-display {
@@ -209,11 +207,9 @@
 }
 
 @utility interactive-card {
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
-  will-change: transform;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 
   &:hover {
-    transform: translateY(-2px);
     border-color: oklch(0.83 0.08 290 / 0.45);
     box-shadow: 0 12px 30px -10px oklch(0.08 0.02 254 / 0.7), 0 0 16px oklch(0.83 0.08 290 / 0.1);
   }
@@ -487,6 +483,17 @@
 @utility animate-dot-3 {
   animation: bubble-dot-bounce 1.2s infinite ease-in-out;
   animation-delay: 0.4s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 
